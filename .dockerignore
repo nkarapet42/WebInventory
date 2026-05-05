@@ -9,6 +9,7 @@
 **/*.swp
 **/*.tmp
 **/*.log
+**/.env
 **/*.md
 **/TestResults
 **/.idea

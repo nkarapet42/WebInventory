@@ -1,45 +1,97 @@
+@using System.Text.Json
 @model IReadOnlyList<WebInventory.Domain.Entities.Item>
 @{
     var inventory = (WebInventory.Domain.Entities.Inventory)ViewBag.Inventory;
     var canWrite = ViewBag.CanWrite is true;
+    var rowData = Model.Select(item => new
+    {
+        id = item.Id,
+        customId = item.CustomId,
+        text1 = item.Text1,
+        num1 = item.Num1,
+        updatedAt = item.UpdatedAt.ToString("u")
+    });
+    var rowDataJson = JsonSerializer.Serialize(rowData, new JsonSerializerOptions
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+    });
 }
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ag-grid-community/styles/ag-grid.css" />
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ag-grid-community/styles/ag-theme-alpine.css" />
 
 <div class="d-flex justify-content-between align-items-center mb-3">
     <h1>Items for @inventory.Title</h1>
-    @if (canWrite)
-    {
-        <a class="btn btn-primary" asp-action="Create" asp-route-inventoryId="@inventory.Id">New Item</a>
-    }
+    <div class="d-flex gap-2">
+        @if (canWrite)
+        {
+            <a class="btn btn-primary" asp-action="Create" asp-route-inventoryId="@inventory.Id">New Item</a>
+            <button id="editItemBtn" class="btn btn-outline-secondary" type="button" disabled>Edit</button>
+            <button id="deleteItemBtn" class="btn btn-outline-danger" type="button" disabled>Delete</button>
+        }
+    </div>
 </div>
 
-<table class="table table-striped">
-    <thead>
-        <tr>
-            <th>Custom ID</th>
-            <th>Text1</th>
-            <th>Num1</th>
-            <th>Updated</th>
-            <th></th>
-        </tr>
-    </thead>
-    <tbody>
-    @foreach (var item in Model)
-    {
-        <tr>
-            <td>@item.CustomId</td>
-            <td>@item.Text1</td>
-            <td>@item.Num1</td>
-            <td>@item.UpdatedAt.ToString("u")</td>
-            <td class="text-end">
-                @if (canWrite)
-                {
-                    <a class="btn btn-sm btn-outline-secondary" asp-action="Edit" asp-route-id="@item.Id">Edit</a>
-                    <a class="btn btn-sm btn-outline-danger" asp-action="Delete" asp-route-id="@item.Id">Delete</a>
-                }
-            </td>
-        </tr>
-    }
-    </tbody>
-</table>
+<div id="itemsGrid" class="ag-theme-alpine" style="height: 500px; width: 100%;"></div>
 
 <a class="btn btn-link" asp-controller="Inventories" asp-action="Details" asp-route-id="@inventory.Id">Back to inventory</a>
+
+<script src="https://cdn.jsdelivr.net/npm/ag-grid-community/dist/ag-grid-community.min.js"></script>
+<script>
+    const rowData = @Html.Raw(rowDataJson);
+    const canWrite = @canWrite.ToString().ToLowerInvariant();
+    const gridOptions = {
+        columnDefs: [
+            { field: 'customId', headerName: 'Custom ID', sortable: true, filter: true },
+            { field: 'text1', headerName: 'Text1', sortable: true, filter: true },
+            { field: 'num1', headerName: 'Num1', sortable: true, filter: true },
+            { field: 'updatedAt', headerName: 'Updated', sortable: true, filter: true }
+        ],
+        rowData,
+        rowSelection: 'single',
+        getRowId: params => params.data.id,
+        onSelectionChanged: event => {
+            if (!canWrite) {
+                return;
+            }
+            const selected = event.api.getSelectedRows();
+            const hasSelection = selected.length === 1;
+            document.getElementById('editItemBtn').disabled = !hasSelection;
+            document.getElementById('deleteItemBtn').disabled = !hasSelection;
+        },
+        getContextMenuItems: params => {
+            if (!canWrite) {
+                return [];
+            }
+            const row = params.node?.data;
+            if (!row) {
+                return [];
+            }
+            return [
+                'copy',
+                'separator',
+                { name: 'Edit', action: () => window.location.href = `/Items/Edit/${row.id}` },
+                { name: 'Delete', action: () => window.location.href = `/Items/Delete/${row.id}` }
+            ];
+        }
+    };
+
+    const gridDiv = document.getElementById('itemsGrid');
+    const gridApi = agGrid.createGrid(gridDiv, gridOptions);
+
+    if (canWrite) {
+        document.getElementById('editItemBtn').addEventListener('click', () => {
+            const selected = gridApi.getSelectedRows();
+            if (selected.length === 1) {
+                window.location.href = `/Items/Edit/${selected[0].id}`;
+            }
+        });
+
+        document.getElementById('deleteItemBtn').addEventListener('click', () => {
+            const selected = gridApi.getSelectedRows();
+            if (selected.length === 1) {
+                window.location.href = `/Items/Delete/${selected[0].id}`;
+            }
+        });
+    }
+</script>

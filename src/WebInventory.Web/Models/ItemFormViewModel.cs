@@ -7,9 +7,8 @@ public class ItemFormViewModel
     public Guid? Id { get; set; }
     public Guid InventoryId { get; set; }
 
-    [Required]
     [StringLength(120)]
-    public string CustomId { get; set; } = string.Empty;
+    public string? CustomId { get; set; }
 
     public string? Text1 { get; set; }
     public string? Text2 { get; set; }

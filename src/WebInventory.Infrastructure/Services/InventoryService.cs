@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using WebInventory.Application.Constants;
 using WebInventory.Application.Interfaces;
 using WebInventory.Domain.Entities;
 using WebInventory.Infrastructure.Data;
@@ -45,9 +46,56 @@ public class InventoryService : IInventoryService
             .ToListAsync();
     }
 
+    public async Task<string?> GetLatestCustomIdPatternAsync(Guid inventoryId)
+    {
+        return await _dbContext.CustomIdPatterns
+            .AsNoTracking()
+            .Where(p => p.InventoryId == inventoryId)
+            .OrderByDescending(p => p.Version)
+            .Select(p => p.Pattern)
+            .FirstOrDefaultAsync();
+    }
+
+    public async Task<bool> AddCustomIdPatternAsync(Guid inventoryId, string pattern)
+    {
+        var latest = await _dbContext.CustomIdPatterns
+            .Where(p => p.InventoryId == inventoryId)
+            .OrderByDescending(p => p.Version)
+            .FirstOrDefaultAsync();
+
+        if (latest is not null && string.Equals(latest.Pattern, pattern, StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        var nextVersion = latest?.Version + 1 ?? 1;
+        _dbContext.CustomIdPatterns.Add(new CustomIdPattern
+        {
+            Id = Guid.NewGuid(),
+            InventoryId = inventoryId,
+            Version = nextVersion,
+            Pattern = pattern,
+            CreatedAt = DateTime.UtcNow
+        });
+
+        await _dbContext.SaveChangesAsync();
+        return true;
+    }
+
     public async Task<Inventory> AddAsync(Inventory inventory)
     {
         _dbContext.Inventories.Add(inventory);
+        if (!inventory.CustomIdPatterns.Any())
+        {
+            inventory.CustomIdPatterns.Add(new CustomIdPattern
+            {
+                Id = Guid.NewGuid(),
+                InventoryId = inventory.Id,
+                Version = 1,
+                Pattern = CustomIdDefaults.DefaultPattern,
+                CreatedAt = DateTime.UtcNow
+            });
+        }
         await _dbContext.SaveChangesAsync();
         return inventory;
     }

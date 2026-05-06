@@ -4,6 +4,7 @@ using WebInventory.Application.Interfaces;
 using WebInventory.Domain.Identity;
 using WebInventory.Infrastructure.Data;
 using WebInventory.Infrastructure.Services;
+using WebInventory.Infrastructure.Services.CustomId;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -19,6 +20,15 @@ builder.Services.AddDefaultIdentity<ApplicationUser>(options =>
 builder.Services.AddScoped<IInventoryService, InventoryService>();
 builder.Services.AddScoped<IItemService, ItemService>();
 builder.Services.AddScoped<IAccessControlService, AccessControlService>();
+builder.Services.AddScoped<ICustomIdGenerator, CustomIdGenerator>();
+builder.Services.AddSingleton<IIdPartGenerator, FixedTextGenerator>();
+builder.Services.AddSingleton<IIdPartGenerator, Random20BitGenerator>();
+builder.Services.AddSingleton<IIdPartGenerator, Random32BitGenerator>();
+builder.Services.AddSingleton<IIdPartGenerator, Random6DigitGenerator>();
+builder.Services.AddSingleton<IIdPartGenerator, Random9DigitGenerator>();
+builder.Services.AddSingleton<IIdPartGenerator, GuidGenerator>();
+builder.Services.AddSingleton<IIdPartGenerator, DateTimeGenerator>();
+builder.Services.AddSingleton<IIdPartGenerator, SequenceGenerator>();
 builder.Services.AddControllersWithViews();
 builder.Services.AddRazorPages();
 

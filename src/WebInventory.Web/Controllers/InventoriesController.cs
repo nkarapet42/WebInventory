@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using WebInventory.Application.Interfaces;
+using WebInventory.Application.Constants;
 using WebInventory.Domain.Entities;
 using WebInventory.Domain.Enums;
 using WebInventory.Domain.Identity;
@@ -14,12 +15,14 @@ public class InventoriesController : Controller
 {
     private readonly IInventoryService _inventoryService;
     private readonly IAccessControlService _accessControlService;
+    private readonly ICustomIdGenerator _customIdGenerator;
     private readonly UserManager<ApplicationUser> _userManager;
 
-    public InventoriesController(IInventoryService inventoryService, IAccessControlService accessControlService, UserManager<ApplicationUser> userManager)
+    public InventoriesController(IInventoryService inventoryService, IAccessControlService accessControlService, ICustomIdGenerator customIdGenerator, UserManager<ApplicationUser> userManager)
     {
         _inventoryService = inventoryService;
         _accessControlService = accessControlService;
+        _customIdGenerator = customIdGenerator;
         _userManager = userManager;
     }
 
@@ -278,6 +281,78 @@ public class InventoriesController : Controller
 
         await _accessControlService.RemoveWriterAsync(id, userId);
         return RedirectToAction(nameof(Access), new { id });
+    }
+
+    [Authorize]
+    public async Task<IActionResult> CustomIds(Guid id)
+    {
+        var inventory = await _inventoryService.GetByIdForEditAsync(id);
+        if (inventory is null)
+        {
+            return NotFound();
+        }
+
+        if (!IsOwner(inventory))
+        {
+            return Forbid();
+        }
+
+        var pattern = await _inventoryService.GetLatestCustomIdPatternAsync(id);
+        var preview = await _customIdGenerator.GenerateAsync(inventory);
+        ViewBag.PatternOptions = GetPatternOptions();
+        return View(new CustomIdPatternViewModel
+        {
+            InventoryId = id,
+            Pattern = pattern,
+            Preview = preview
+        });
+    }
+
+    [Authorize]
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> CustomIds(Guid id, CustomIdPatternViewModel model)
+    {
+        if (id != model.InventoryId)
+        {
+            return NotFound();
+        }
+
+        var inventory = await _inventoryService.GetByIdForEditAsync(id);
+        if (inventory is null)
+        {
+            return NotFound();
+        }
+
+        if (!IsOwner(inventory))
+        {
+            return Forbid();
+        }
+
+        if (!ModelState.IsValid)
+        {
+            model.Preview = await _customIdGenerator.GenerateAsync(inventory);
+            ViewBag.PatternOptions = GetPatternOptions();
+            return View(model);
+        }
+
+        var selectedPattern = string.IsNullOrWhiteSpace(model.Pattern)
+            ? CustomIdDefaults.DefaultPattern
+            : model.Pattern.Trim();
+        await _inventoryService.AddCustomIdPatternAsync(id, selectedPattern);
+        return RedirectToAction(nameof(CustomIds), new { id });
+    }
+
+    private static IReadOnlyList<SelectListItem> GetPatternOptions()
+    {
+        return new List<SelectListItem>
+        {
+            new(CustomIdDefaults.DefaultPattern, CustomIdDefaults.DefaultPattern),
+            new("FIX:EQ-|SEQ:5", "FIX:EQ-|SEQ:5"),
+            new("FIX:LIB-|DATE:yyyy-|SEQ:4", "FIX:LIB-|DATE:yyyy-|SEQ:4"),
+            new("FIX:LAP-|DATE:yyyyMMdd-|R6", "FIX:LAP-|DATE:yyyyMMdd-|R6"),
+            new("GUID", "GUID")
+        };
     }
 
     private bool IsOwner(Inventory inventory)

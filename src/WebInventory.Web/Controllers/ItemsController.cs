@@ -12,12 +12,14 @@ public class ItemsController : Controller
     private readonly IItemService _itemService;
     private readonly IInventoryService _inventoryService;
     private readonly IAccessControlService _accessControlService;
+    private readonly ICustomIdGenerator _customIdGenerator;
 
-    public ItemsController(IItemService itemService, IInventoryService inventoryService, IAccessControlService accessControlService)
+    public ItemsController(IItemService itemService, IInventoryService inventoryService, IAccessControlService accessControlService, ICustomIdGenerator customIdGenerator)
     {
         _itemService = itemService;
         _inventoryService = inventoryService;
         _accessControlService = accessControlService;
+        _customIdGenerator = customIdGenerator;
     }
 
     [AllowAnonymous]
@@ -75,11 +77,15 @@ public class ItemsController : Controller
             return View(model);
         }
 
+        var customId = string.IsNullOrWhiteSpace(model.CustomId)
+            ? await _customIdGenerator.GenerateAsync(inventory)
+            : model.CustomId!.Trim();
+
         var item = new Item
         {
             Id = Guid.NewGuid(),
             InventoryId = model.InventoryId,
-            CustomId = model.CustomId,
+            CustomId = customId,
             Text1 = model.Text1,
             Text2 = model.Text2,
             Text3 = model.Text3,
@@ -189,7 +195,15 @@ public class ItemsController : Controller
             return View(model);
         }
 
-        item.CustomId = model.CustomId;
+        if (string.IsNullOrWhiteSpace(model.CustomId))
+        {
+            ModelState.AddModelError(nameof(model.CustomId), "Custom ID is required.");
+            ViewBag.Inventory = inventory;
+            ViewBag.CanWrite = true;
+            return View(model);
+        }
+
+        item.CustomId = model.CustomId.Trim();
         item.Text1 = model.Text1;
         item.Text2 = model.Text2;
         item.Text3 = model.Text3;

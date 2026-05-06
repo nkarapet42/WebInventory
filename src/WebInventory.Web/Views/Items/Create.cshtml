@@ -8,7 +8,7 @@
 <form asp-action="Create" method="post">
     <input type="hidden" asp-for="InventoryId" />
     <div class="mb-3">
-        <label asp-for="CustomId" class="form-label"></label>
+        <label asp-for="CustomId" class="form-label">Custom ID (leave blank to auto-generate)</label>
         <input asp-for="CustomId" class="form-control" />
         <span asp-validation-for="CustomId" class="text-danger"></span>
     </div>

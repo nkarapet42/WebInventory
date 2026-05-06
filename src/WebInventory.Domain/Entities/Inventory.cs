@@ -13,7 +13,7 @@ public class Inventory
     public InventoryAccessMode AccessMode { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
-    public byte[] RowVersion { get; set; } = Array.Empty<byte>();
+    public uint RowVersion { get; set; }
     public Category? Category { get; set; }
     public ICollection<InventoryField> Fields { get; set; } = new List<InventoryField>();
     public ICollection<Item> Items { get; set; } = new List<Item>();

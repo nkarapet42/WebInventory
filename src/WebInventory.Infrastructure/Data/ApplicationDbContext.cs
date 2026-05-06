@@ -52,7 +52,10 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
             entity.Property(e => e.Title).HasMaxLength(200).IsRequired();
             entity.Property(e => e.DescriptionMarkdown).HasMaxLength(4000);
             entity.Property(e => e.ImageUrl).HasMaxLength(500);
-            entity.Property(e => e.RowVersion).IsRowVersion();
+            entity.Property(e => e.RowVersion)
+                .HasColumnName("xmin")
+                .IsConcurrencyToken()
+                .ValueGeneratedOnAddOrUpdate();
             entity.Property(e => e.CreatedAt).HasDefaultValueSql("now()");
             entity.Property(e => e.UpdatedAt).HasDefaultValueSql("now()");
             entity.HasOne(e => e.Category)
@@ -94,7 +97,10 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
         {
             entity.HasKey(e => e.Id);
             entity.Property(e => e.CustomId).HasMaxLength(120).IsRequired();
-            entity.Property(e => e.RowVersion).IsRowVersion();
+            entity.Property(e => e.RowVersion)
+                .HasColumnName("xmin")
+                .IsConcurrencyToken()
+                .ValueGeneratedOnAddOrUpdate();
             entity.Property(e => e.CreatedAt).HasDefaultValueSql("now()");
             entity.Property(e => e.UpdatedAt).HasDefaultValueSql("now()");
             entity.HasIndex(e => new { e.InventoryId, e.CustomId }).IsUnique();

@@ -22,7 +22,7 @@ public class Item
     public bool? Bool3 { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
-    public byte[] RowVersion { get; set; } = Array.Empty<byte>();
+    public uint RowVersion { get; set; }
     public Inventory? Inventory { get; set; }
     public ICollection<ItemTag> ItemTags { get; set; } = new List<ItemTag>();
     public ICollection<ItemLike> Likes { get; set; } = new List<ItemLike>();

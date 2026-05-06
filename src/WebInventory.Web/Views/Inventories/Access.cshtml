@@ -1,0 +1,43 @@
+@model WebInventory.Web.Models.InventoryAccessViewModel
+
+<h1>Access for @Model.Inventory.Title</h1>
+
+<form asp-action="AddAccess" method="post" class="mb-4">
+    <input type="hidden" name="id" value="@Model.Inventory.Id" />
+    <div class="mb-3">
+        <label for="UserIdentifier" class="form-label">Add user by email or username</label>
+        <input class="form-control" id="UserIdentifier" name="UserIdentifier" value="@Model.UserIdentifier" />
+    </div>
+    @if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
+    {
+        <div class="text-danger mb-2">@Model.ErrorMessage</div>
+    }
+    <button type="submit" class="btn btn-primary">Add</button>
+    <a class="btn btn-link" asp-action="Details" asp-route-id="@Model.Inventory.Id">Back</a>
+</form>
+
+<table class="table table-striped">
+    <thead>
+        <tr>
+            <th>User</th>
+            <th>Email</th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+    @foreach (var user in Model.Writers)
+    {
+        <tr>
+            <td>@user.UserName</td>
+            <td>@user.Email</td>
+            <td class="text-end">
+                <form asp-action="RemoveAccess" method="post" class="d-inline">
+                    <input type="hidden" name="id" value="@Model.Inventory.Id" />
+                    <input type="hidden" name="userId" value="@user.Id" />
+                    <button type="submit" class="btn btn-sm btn-outline-danger">Remove</button>
+                </form>
+            </td>
+        </tr>
+    }
+    </tbody>
+</table>

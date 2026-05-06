@@ -13,11 +13,13 @@ namespace WebInventory.Web.Controllers;
 public class InventoriesController : Controller
 {
     private readonly IInventoryService _inventoryService;
+    private readonly IAccessControlService _accessControlService;
     private readonly UserManager<ApplicationUser> _userManager;
 
-    public InventoriesController(IInventoryService inventoryService, UserManager<ApplicationUser> userManager)
+    public InventoriesController(IInventoryService inventoryService, IAccessControlService accessControlService, UserManager<ApplicationUser> userManager)
     {
         _inventoryService = inventoryService;
+        _accessControlService = accessControlService;
         _userManager = userManager;
     }
 
@@ -75,6 +77,13 @@ public class InventoriesController : Controller
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow
         };
+
+        inventory.AccessList.Add(new InventoryAccess
+        {
+            InventoryId = inventory.Id,
+            UserId = userId,
+            AccessLevel = AccessLevel.Owner
+        });
 
         await _inventoryService.AddAsync(inventory);
         return RedirectToAction(nameof(Details), new { id = inventory.Id });
@@ -195,6 +204,80 @@ public class InventoriesController : Controller
 
         await _inventoryService.DeleteAsync(inventory);
         return RedirectToAction(nameof(Index));
+    }
+
+    [Authorize]
+    public async Task<IActionResult> Access(Guid id)
+    {
+        var inventory = await _inventoryService.GetByIdForEditAsync(id);
+        if (inventory is null)
+        {
+            return NotFound();
+        }
+
+        if (!IsOwner(inventory))
+        {
+            return Forbid();
+        }
+
+        var writers = await _accessControlService.GetWritersAsync(id);
+        return View(new InventoryAccessViewModel
+        {
+            Inventory = inventory,
+            Writers = writers
+        });
+    }
+
+    [Authorize]
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> AddAccess(Guid id, InventoryAccessViewModel model)
+    {
+        var inventory = await _inventoryService.GetByIdForEditAsync(id);
+        if (inventory is null)
+        {
+            return NotFound();
+        }
+
+        if (!IsOwner(inventory))
+        {
+            return Forbid();
+        }
+
+        var result = await _accessControlService.AddWriterAsync(id, model.UserIdentifier ?? string.Empty);
+        if (!result.Succeeded)
+        {
+            var writers = await _accessControlService.GetWritersAsync(id);
+            return View("Access", new InventoryAccessViewModel
+            {
+                Inventory = inventory,
+                Writers = writers,
+                UserIdentifier = model.UserIdentifier,
+                ErrorMessage = result.ErrorMessage
+            });
+        }
+
+        return RedirectToAction(nameof(Access), new { id });
+    }
+
+    [Authorize]
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> RemoveAccess(Guid id, string userId)
+    {
+        var inventory = await _inventoryService.GetByIdForEditAsync(id);
+        if (inventory is null)
+        {
+            return NotFound();
+        }
+
+        if (!IsOwner(inventory))
+        {
+            return Forbid();
+        }
+
+        await _accessControlService.RemoveWriterAsync(id, userId);
+        return RedirectToAction(nameof(Access), new { id });
     }
 
     private bool IsOwner(Inventory inventory)

@@ -1,9 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using WebInventory.Application.Interfaces;
 using WebInventory.Domain.Entities;
-using WebInventory.Domain.Identity;
 using WebInventory.Web.Models;
 
 namespace WebInventory.Web.Controllers;
@@ -13,13 +11,13 @@ public class ItemsController : Controller
 {
     private readonly IItemService _itemService;
     private readonly IInventoryService _inventoryService;
-    private readonly UserManager<ApplicationUser> _userManager;
+    private readonly IAccessControlService _accessControlService;
 
-    public ItemsController(IItemService itemService, IInventoryService inventoryService, UserManager<ApplicationUser> userManager)
+    public ItemsController(IItemService itemService, IInventoryService inventoryService, IAccessControlService accessControlService)
     {
         _itemService = itemService;
         _inventoryService = inventoryService;
-        _userManager = userManager;
+        _accessControlService = accessControlService;
     }
 
     [AllowAnonymous]
@@ -32,7 +30,7 @@ public class ItemsController : Controller
         }
 
         ViewBag.Inventory = inventory;
-        ViewBag.CanWrite = CanWrite(inventory);
+        ViewBag.CanWrite = await CanWriteAsync(inventory);
         var items = await _itemService.GetByInventoryAsync(inventoryId);
         return View(items);
     }
@@ -45,7 +43,7 @@ public class ItemsController : Controller
             return NotFound();
         }
 
-        if (!CanWrite(inventory))
+        if (!await CanWriteAsync(inventory))
         {
             return Forbid();
         }
@@ -65,7 +63,7 @@ public class ItemsController : Controller
             return NotFound();
         }
 
-        if (!CanWrite(inventory))
+        if (!await CanWriteAsync(inventory))
         {
             return Forbid();
         }
@@ -119,7 +117,7 @@ public class ItemsController : Controller
             return NotFound();
         }
 
-        if (!CanWrite(inventory))
+        if (!await CanWriteAsync(inventory))
         {
             return Forbid();
         }
@@ -171,7 +169,7 @@ public class ItemsController : Controller
             return NotFound();
         }
 
-        if (!CanWrite(inventory))
+        if (!await CanWriteAsync(inventory))
         {
             return Forbid();
         }
@@ -234,7 +232,7 @@ public class ItemsController : Controller
             return NotFound();
         }
 
-        if (!CanWrite(inventory))
+        if (!await CanWriteAsync(inventory))
         {
             return Forbid();
         }
@@ -260,7 +258,7 @@ public class ItemsController : Controller
             return NotFound();
         }
 
-        if (!CanWrite(inventory))
+        if (!await CanWriteAsync(inventory))
         {
             return Forbid();
         }
@@ -269,14 +267,8 @@ public class ItemsController : Controller
         return RedirectToAction(nameof(Index), new { inventoryId = item.InventoryId });
     }
 
-    private bool CanWrite(Inventory inventory)
+    private async Task<bool> CanWriteAsync(Inventory inventory)
     {
-        if (inventory.AccessMode == Domain.Enums.InventoryAccessMode.PublicWrite)
-        {
-            return User.Identity?.IsAuthenticated == true;
-        }
-
-        var userId = _userManager.GetUserId(User);
-        return userId is not null && inventory.OwnerId == userId;
+        return await _accessControlService.CanWriteAsync(inventory, User);
     }
 }

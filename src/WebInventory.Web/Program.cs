@@ -18,6 +18,7 @@ builder.Services.AddDefaultIdentity<ApplicationUser>(options =>
     .AddEntityFrameworkStores<ApplicationDbContext>();
 builder.Services.AddScoped<IInventoryService, InventoryService>();
 builder.Services.AddScoped<IItemService, ItemService>();
+builder.Services.AddScoped<IAccessControlService, AccessControlService>();
 builder.Services.AddControllersWithViews();
 builder.Services.AddRazorPages();
 

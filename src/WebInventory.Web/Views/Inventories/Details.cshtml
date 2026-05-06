@@ -29,4 +29,7 @@
     <dd class="col-sm-10">@Model.UpdatedAt.ToString("u")</dd>
 </dl>
 
-<a class="btn btn-link" asp-action="Index">Back to list</a>
+<div class="d-flex gap-2">
+    <a class="btn btn-outline-primary" asp-controller="Items" asp-action="Index" asp-route-inventoryId="@Model.Id">Items</a>
+    <a class="btn btn-link" asp-action="Index">Back to list</a>
+</div>

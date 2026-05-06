@@ -1,0 +1,14 @@
+@model WebInventory.Domain.Entities.Item
+@{
+    var inventory = (WebInventory.Domain.Entities.Inventory)ViewBag.Inventory;
+}
+
+<h1>Delete Item</h1>
+
+<p>Are you sure you want to delete <strong>@Model.CustomId</strong>?</p>
+
+<form asp-action="DeleteConfirmed" method="post">
+    <input type="hidden" name="id" value="@Model.Id" />
+    <button type="submit" class="btn btn-danger">Delete</button>
+    <a class="btn btn-link" asp-action="Index" asp-route-inventoryId="@inventory.Id">Cancel</a>
+</form>

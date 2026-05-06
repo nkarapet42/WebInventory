@@ -1,0 +1,45 @@
+@model IReadOnlyList<WebInventory.Domain.Entities.Item>
+@{
+    var inventory = (WebInventory.Domain.Entities.Inventory)ViewBag.Inventory;
+    var canWrite = ViewBag.CanWrite is true;
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h1>Items for @inventory.Title</h1>
+    @if (canWrite)
+    {
+        <a class="btn btn-primary" asp-action="Create" asp-route-inventoryId="@inventory.Id">New Item</a>
+    }
+</div>
+
+<table class="table table-striped">
+    <thead>
+        <tr>
+            <th>Custom ID</th>
+            <th>Text1</th>
+            <th>Num1</th>
+            <th>Updated</th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+    @foreach (var item in Model)
+    {
+        <tr>
+            <td>@item.CustomId</td>
+            <td>@item.Text1</td>
+            <td>@item.Num1</td>
+            <td>@item.UpdatedAt.ToString("u")</td>
+            <td class="text-end">
+                @if (canWrite)
+                {
+                    <a class="btn btn-sm btn-outline-secondary" asp-action="Edit" asp-route-id="@item.Id">Edit</a>
+                    <a class="btn btn-sm btn-outline-danger" asp-action="Delete" asp-route-id="@item.Id">Delete</a>
+                }
+            </td>
+        </tr>
+    }
+    </tbody>
+</table>
+
+<a class="btn btn-link" asp-controller="Inventories" asp-action="Details" asp-route-id="@inventory.Id">Back to inventory</a>

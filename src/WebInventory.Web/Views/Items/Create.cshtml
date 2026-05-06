@@ -1,0 +1,81 @@
+@model WebInventory.Web.Models.ItemFormViewModel
+@{
+    var inventory = (WebInventory.Domain.Entities.Inventory)ViewBag.Inventory;
+}
+
+<h1>New Item for @inventory.Title</h1>
+
+<form asp-action="Create" method="post">
+    <input type="hidden" asp-for="InventoryId" />
+    <div class="mb-3">
+        <label asp-for="CustomId" class="form-label"></label>
+        <input asp-for="CustomId" class="form-control" />
+        <span asp-validation-for="CustomId" class="text-danger"></span>
+    </div>
+    <div class="mb-3">
+        <label asp-for="Text1" class="form-label"></label>
+        <input asp-for="Text1" class="form-control" />
+    </div>
+    <div class="mb-3">
+        <label asp-for="Text2" class="form-label"></label>
+        <input asp-for="Text2" class="form-control" />
+    </div>
+    <div class="mb-3">
+        <label asp-for="Text3" class="form-label"></label>
+        <input asp-for="Text3" class="form-control" />
+    </div>
+    <div class="mb-3">
+        <label asp-for="Multiline1" class="form-label"></label>
+        <textarea asp-for="Multiline1" class="form-control" rows="3"></textarea>
+    </div>
+    <div class="mb-3">
+        <label asp-for="Multiline2" class="form-label"></label>
+        <textarea asp-for="Multiline2" class="form-control" rows="3"></textarea>
+    </div>
+    <div class="mb-3">
+        <label asp-for="Multiline3" class="form-label"></label>
+        <textarea asp-for="Multiline3" class="form-control" rows="3"></textarea>
+    </div>
+    <div class="mb-3">
+        <label asp-for="Num1" class="form-label"></label>
+        <input asp-for="Num1" class="form-control" />
+    </div>
+    <div class="mb-3">
+        <label asp-for="Num2" class="form-label"></label>
+        <input asp-for="Num2" class="form-control" />
+    </div>
+    <div class="mb-3">
+        <label asp-for="Num3" class="form-label"></label>
+        <input asp-for="Num3" class="form-control" />
+    </div>
+    <div class="mb-3">
+        <label asp-for="Doc1" class="form-label"></label>
+        <input asp-for="Doc1" class="form-control" />
+    </div>
+    <div class="mb-3">
+        <label asp-for="Doc2" class="form-label"></label>
+        <input asp-for="Doc2" class="form-control" />
+    </div>
+    <div class="mb-3">
+        <label asp-for="Doc3" class="form-label"></label>
+        <input asp-for="Doc3" class="form-control" />
+    </div>
+    <div class="form-check mb-2">
+        <input class="form-check-input" asp-for="Bool1" />
+        <label class="form-check-label" asp-for="Bool1"></label>
+    </div>
+    <div class="form-check mb-2">
+        <input class="form-check-input" asp-for="Bool2" />
+        <label class="form-check-label" asp-for="Bool2"></label>
+    </div>
+    <div class="form-check mb-3">
+        <input class="form-check-input" asp-for="Bool3" />
+        <label class="form-check-label" asp-for="Bool3"></label>
+    </div>
+    <button type="submit" class="btn btn-primary">Create</button>
+    <a class="btn btn-link" asp-action="Index" asp-route-inventoryId="@inventory.Id">Cancel</a>
+</form>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

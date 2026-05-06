@@ -1,0 +1,11 @@
+@model WebInventory.Domain.Entities.Inventory
+
+<h1>Delete Inventory</h1>
+
+<p>Are you sure you want to delete <strong>@Model.Title</strong>?</p>
+
+<form asp-action="DeleteConfirmed" method="post">
+    <input type="hidden" name="id" value="@Model.Id" />
+    <button type="submit" class="btn btn-danger">Delete</button>
+    <a class="btn btn-link" asp-action="Details" asp-route-id="@Model.Id">Cancel</a>
+</form>

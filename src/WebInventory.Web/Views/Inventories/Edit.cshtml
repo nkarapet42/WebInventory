@@ -1,0 +1,39 @@
+@model WebInventory.Web.Models.InventoryFormViewModel
+
+<h1>Edit Inventory</h1>
+
+<form asp-action="Edit" method="post">
+    <input type="hidden" asp-for="Id" />
+    <input type="hidden" asp-for="RowVersion" />
+    <div class="mb-3">
+        <label asp-for="Title" class="form-label"></label>
+        <input asp-for="Title" class="form-control" />
+        <span asp-validation-for="Title" class="text-danger"></span>
+    </div>
+    <div class="mb-3">
+        <label asp-for="DescriptionMarkdown" class="form-label"></label>
+        <textarea asp-for="DescriptionMarkdown" class="form-control" rows="6"></textarea>
+        <span asp-validation-for="DescriptionMarkdown" class="text-danger"></span>
+    </div>
+    <div class="mb-3">
+        <label asp-for="CategoryId" class="form-label"></label>
+        <select asp-for="CategoryId" class="form-select" asp-items="ViewBag.Categories">
+            <option value="">Uncategorized</option>
+        </select>
+    </div>
+    <div class="mb-3">
+        <label asp-for="ImageUrl" class="form-label"></label>
+        <input asp-for="ImageUrl" class="form-control" />
+        <span asp-validation-for="ImageUrl" class="text-danger"></span>
+    </div>
+    <div class="mb-3">
+        <label asp-for="AccessMode" class="form-label"></label>
+        <select asp-for="AccessMode" class="form-select" asp-items="Html.GetEnumSelectList<WebInventory.Domain.Enums.InventoryAccessMode>()"></select>
+    </div>
+    <button type="submit" class="btn btn-primary">Save</button>
+    <a class="btn btn-link" asp-action="Details" asp-route-id="@Model.Id">Cancel</a>
+</form>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

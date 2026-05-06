@@ -1,7 +1,9 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using WebInventory.Application.Interfaces;
 using WebInventory.Domain.Identity;
 using WebInventory.Infrastructure.Data;
+using WebInventory.Infrastructure.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -14,6 +16,7 @@ builder.Services.AddDefaultIdentity<ApplicationUser>(options =>
     })
     .AddRoles<IdentityRole>()
     .AddEntityFrameworkStores<ApplicationDbContext>();
+builder.Services.AddScoped<IInventoryService, InventoryService>();
 builder.Services.AddControllersWithViews();
 builder.Services.AddRazorPages();
 

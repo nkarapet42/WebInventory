@@ -1,0 +1,211 @@
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Rendering;
+using WebInventory.Application.Interfaces;
+using WebInventory.Domain.Entities;
+using WebInventory.Domain.Enums;
+using WebInventory.Domain.Identity;
+using WebInventory.Web.Models;
+
+namespace WebInventory.Web.Controllers;
+
+public class InventoriesController : Controller
+{
+    private readonly IInventoryService _inventoryService;
+    private readonly UserManager<ApplicationUser> _userManager;
+
+    public InventoriesController(IInventoryService inventoryService, UserManager<ApplicationUser> userManager)
+    {
+        _inventoryService = inventoryService;
+        _userManager = userManager;
+    }
+
+    [AllowAnonymous]
+    public async Task<IActionResult> Index()
+    {
+        var inventories = await _inventoryService.GetAllAsync();
+        return View(inventories);
+    }
+
+    [AllowAnonymous]
+    public async Task<IActionResult> Details(Guid id)
+    {
+        var inventory = await _inventoryService.GetByIdAsync(id);
+        if (inventory is null)
+        {
+            return NotFound();
+        }
+        return View(inventory);
+    }
+
+    [Authorize]
+    public async Task<IActionResult> Create()
+    {
+        await PopulateCategoriesAsync();
+        return View(new InventoryFormViewModel { AccessMode = InventoryAccessMode.PublicWrite });
+    }
+
+    [Authorize]
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Create(InventoryFormViewModel model)
+    {
+        if (!ModelState.IsValid)
+        {
+            await PopulateCategoriesAsync();
+            return View(model);
+        }
+
+        var userId = _userManager.GetUserId(User);
+        if (userId is null)
+        {
+            return Forbid();
+        }
+
+        var inventory = new Inventory
+        {
+            Id = Guid.NewGuid(),
+            OwnerId = userId,
+            Title = model.Title,
+            DescriptionMarkdown = model.DescriptionMarkdown,
+            CategoryId = model.CategoryId,
+            ImageUrl = model.ImageUrl,
+            AccessMode = model.AccessMode,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow
+        };
+
+        await _inventoryService.AddAsync(inventory);
+        return RedirectToAction(nameof(Details), new { id = inventory.Id });
+    }
+
+    [Authorize]
+    public async Task<IActionResult> Edit(Guid id)
+    {
+        var inventory = await _inventoryService.GetByIdForEditAsync(id);
+        if (inventory is null)
+        {
+            return NotFound();
+        }
+
+        if (!IsOwner(inventory))
+        {
+            return Forbid();
+        }
+
+        var model = new InventoryFormViewModel
+        {
+            Id = inventory.Id,
+            Title = inventory.Title,
+            DescriptionMarkdown = inventory.DescriptionMarkdown,
+            CategoryId = inventory.CategoryId,
+            ImageUrl = inventory.ImageUrl,
+            AccessMode = inventory.AccessMode,
+            RowVersion = inventory.RowVersion
+        };
+
+        await PopulateCategoriesAsync();
+        return View(model);
+    }
+
+    [Authorize]
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Edit(Guid id, InventoryFormViewModel model)
+    {
+        if (id != model.Id)
+        {
+            return NotFound();
+        }
+
+        var inventory = await _inventoryService.GetByIdForEditAsync(id);
+        if (inventory is null)
+        {
+            return NotFound();
+        }
+
+        if (!IsOwner(inventory))
+        {
+            return Forbid();
+        }
+
+        if (!ModelState.IsValid)
+        {
+            await PopulateCategoriesAsync();
+            return View(model);
+        }
+
+        inventory.Title = model.Title;
+        inventory.DescriptionMarkdown = model.DescriptionMarkdown;
+        inventory.CategoryId = model.CategoryId;
+        inventory.ImageUrl = model.ImageUrl;
+        inventory.AccessMode = model.AccessMode;
+
+        if (model.RowVersion is null)
+        {
+            ModelState.AddModelError(string.Empty, "The inventory version is missing. Please retry.");
+            await PopulateCategoriesAsync();
+            return View(model);
+        }
+
+        var updated = await _inventoryService.UpdateAsync(inventory, model.RowVersion.Value);
+        if (!updated)
+        {
+            ModelState.AddModelError(string.Empty, "The inventory was updated by another user. Please retry.");
+            await PopulateCategoriesAsync();
+            return View(model);
+        }
+
+        return RedirectToAction(nameof(Details), new { id = inventory.Id });
+    }
+
+    [Authorize]
+    public async Task<IActionResult> Delete(Guid id)
+    {
+        var inventory = await _inventoryService.GetByIdForEditAsync(id);
+        if (inventory is null)
+        {
+            return NotFound();
+        }
+
+        if (!IsOwner(inventory))
+        {
+            return Forbid();
+        }
+
+        return View(inventory);
+    }
+
+    [Authorize]
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> DeleteConfirmed(Guid id)
+    {
+        var inventory = await _inventoryService.GetByIdForEditAsync(id);
+        if (inventory is null)
+        {
+            return NotFound();
+        }
+
+        if (!IsOwner(inventory))
+        {
+            return Forbid();
+        }
+
+        await _inventoryService.DeleteAsync(inventory);
+        return RedirectToAction(nameof(Index));
+    }
+
+    private bool IsOwner(Inventory inventory)
+    {
+        var userId = _userManager.GetUserId(User);
+        return userId is not null && inventory.OwnerId == userId;
+    }
+
+    private async Task PopulateCategoriesAsync()
+    {
+        var categories = await _inventoryService.GetCategoriesAsync();
+        ViewBag.Categories = new SelectList(categories, "Id", "Name");
+    }
+}

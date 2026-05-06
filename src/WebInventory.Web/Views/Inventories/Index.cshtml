@@ -1,0 +1,33 @@
+@model IReadOnlyList<WebInventory.Domain.Entities.Inventory>
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h1>Inventories</h1>
+    @if (User.Identity?.IsAuthenticated == true)
+    {
+        <a class="btn btn-primary" asp-action="Create">New Inventory</a>
+    }
+</div>
+
+<table class="table table-striped">
+    <thead>
+        <tr>
+            <th>Title</th>
+            <th>Category</th>
+            <th>Updated</th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+    @foreach (var inventory in Model)
+    {
+        <tr>
+            <td>@inventory.Title</td>
+            <td>@inventory.Category?.Name</td>
+            <td>@inventory.UpdatedAt.ToString("u")</td>
+            <td>
+                <a class="btn btn-sm btn-outline-secondary" asp-action="Details" asp-route-id="@inventory.Id">View</a>
+            </td>
+        </tr>
+    }
+    </tbody>
+</table>

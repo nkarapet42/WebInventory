@@ -1,0 +1,53 @@
+@model WebInventory.Web.Models.SearchViewModel
+
+<h1>Search</h1>
+
+<form method="get" class="mb-4">
+    <div class="input-group">
+        <input class="form-control" name="q" value="@Model.Query" placeholder="Search inventories, items, tags" />
+        <button class="btn btn-primary" type="submit">Search</button>
+    </div>
+</form>
+
+@if (!string.IsNullOrWhiteSpace(Model.Query))
+{
+    <h2>Inventories</h2>
+    <ul class="list-group mb-4">
+        @foreach (var inventory in Model.Inventories)
+        {
+            <li class="list-group-item">
+                <a asp-controller="Inventories" asp-action="Details" asp-route-id="@inventory.Id">@inventory.Title</a>
+            </li>
+        }
+        @if (!Model.Inventories.Any())
+        {
+            <li class="list-group-item">No inventories found.</li>
+        }
+    </ul>
+
+    <h2>Items</h2>
+    <ul class="list-group mb-4">
+        @foreach (var item in Model.Items)
+        {
+            <li class="list-group-item">
+                @item.CustomId
+            </li>
+        }
+        @if (!Model.Items.Any())
+        {
+            <li class="list-group-item">No items found.</li>
+        }
+    </ul>
+
+    <h2>Tags</h2>
+    <ul class="list-group">
+        @foreach (var tag in Model.Tags)
+        {
+            <li class="list-group-item">@tag.Name</li>
+        }
+        @if (!Model.Tags.Any())
+        {
+            <li class="list-group-item">No tags found.</li>
+        }
+    </ul>
+}

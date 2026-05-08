@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
+using NpgsqlTypes;
 using WebInventory.Domain.Entities;
 using WebInventory.Domain.Identity;
 
@@ -43,6 +44,10 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
             entity.HasIndex(e => e.NormalizedName).IsUnique();
             entity.Property(e => e.Name).HasMaxLength(100).IsRequired();
             entity.Property(e => e.NormalizedName).HasMaxLength(100).IsRequired();
+            entity.Property<NpgsqlTsVector>("SearchVector")
+                .HasColumnType("tsvector")
+                .HasComputedColumnSql("to_tsvector('simple', coalesce(\"Name\", ''))", stored: true);
+            entity.HasIndex("SearchVector").HasMethod("GIN");
         });
 
         builder.Entity<Inventory>(entity =>
@@ -61,6 +66,10 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
             entity.HasOne(e => e.Category)
                 .WithMany()
                 .HasForeignKey(e => e.CategoryId);
+            entity.Property<NpgsqlTsVector>("SearchVector")
+                .HasColumnType("tsvector")
+                .HasComputedColumnSql("to_tsvector('simple', coalesce(\"Title\", '') || ' ' || coalesce(\"DescriptionMarkdown\", ''))", stored: true);
+            entity.HasIndex("SearchVector").HasMethod("GIN");
         });
 
         builder.Entity<InventoryField>(entity =>
@@ -107,6 +116,10 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
             entity.HasOne(e => e.Inventory)
                 .WithMany(i => i.Items)
                 .HasForeignKey(e => e.InventoryId);
+            entity.Property<NpgsqlTsVector>("SearchVector")
+                .HasColumnType("tsvector")
+                .HasComputedColumnSql("to_tsvector('simple', coalesce(\"CustomId\", '') || ' ' || coalesce(\"Text1\", '') || ' ' || coalesce(\"Text2\", '') || ' ' || coalesce(\"Text3\", ''))", stored: true);
+            entity.HasIndex("SearchVector").HasMethod("GIN");
         });
 
         builder.Entity<ItemLike>(entity =>

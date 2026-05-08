@@ -20,6 +20,7 @@ builder.Services.AddDefaultIdentity<ApplicationUser>(options =>
 builder.Services.AddScoped<IInventoryService, InventoryService>();
 builder.Services.AddScoped<IItemService, ItemService>();
 builder.Services.AddScoped<IAccessControlService, AccessControlService>();
+builder.Services.AddScoped<ISearchService, SearchService>();
 builder.Services.AddScoped<ICustomIdGenerator, CustomIdGenerator>();
 builder.Services.AddSingleton<IIdPartGenerator, FixedTextGenerator>();
 builder.Services.AddSingleton<IIdPartGenerator, Random20BitGenerator>();

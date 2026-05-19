@@ -231,12 +231,73 @@ public class InventoriesController : Controller
         var updated = await _inventoryService.UpdateAsync(inventory, model.RowVersion.Value);
         if (!updated)
         {
-            ModelState.AddModelError(string.Empty, "The inventory was updated by another user. Please retry.");
-            await PopulateCategoriesAsync();
-            return View(model);
+            TempData["InventoryEditError"] = "The inventory was updated by another user. Reloaded the latest version.";
+            return RedirectToAction(nameof(Edit), new { id = inventory.Id });
         }
 
         return RedirectToAction(nameof(Details), new { id = inventory.Id });
+    }
+
+    [Authorize]
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Autosave(Guid id, InventoryFormViewModel model)
+    {
+        if (id != model.Id)
+        {
+            return NotFound();
+        }
+
+        var inventory = await _inventoryService.GetByIdForEditAsync(id);
+        if (inventory is null)
+        {
+            return NotFound();
+        }
+
+        if (!await CanManageAsync(inventory))
+        {
+            return Forbid();
+        }
+
+        if (!ModelState.IsValid)
+        {
+            var errors = ModelState.Values
+                .SelectMany(entry => entry.Errors)
+                .Select(error => error.ErrorMessage)
+                .Where(message => !string.IsNullOrWhiteSpace(message))
+                .ToArray();
+            return BadRequest(new { saved = false, errors });
+        }
+
+        if (model.RowVersion is null)
+        {
+            return Conflict(new { saved = false, message = "The inventory version is missing. Refresh the page and try again." });
+        }
+
+        inventory.Title = model.Title;
+        inventory.DescriptionMarkdown = model.DescriptionMarkdown;
+        inventory.CategoryId = model.CategoryId;
+        inventory.ImageUrl = model.ImageUrl;
+        inventory.AccessMode = model.AccessMode;
+
+        var updated = await _inventoryService.UpdateAsync(inventory, model.RowVersion.Value);
+        if (!updated)
+        {
+            return Conflict(new { saved = false, message = "The inventory was updated by another user. Refresh before continuing." });
+        }
+
+        var rowVersion = await _dbContext.Inventories
+            .AsNoTracking()
+            .Where(existing => existing.Id == id)
+            .Select(existing => existing.RowVersion)
+            .FirstAsync();
+
+        return Json(new
+        {
+            saved = true,
+            rowVersion,
+            savedAt = DateTime.UtcNow.ToString("u")
+        });
     }
 
     [Authorize]

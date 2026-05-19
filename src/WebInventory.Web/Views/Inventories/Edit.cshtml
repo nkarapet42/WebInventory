@@ -2,9 +2,15 @@
 
 <h1>Edit Inventory</h1>
 
-<form asp-action="Edit" method="post">
+@if (TempData["InventoryEditError"] is string editError)
+{
+    <div class="alert alert-danger" role="alert">@editError</div>
+}
+
+<form id="inventorySettingsForm" asp-action="Edit" method="post">
     <input type="hidden" asp-for="Id" />
     <input type="hidden" asp-for="RowVersion" />
+    <div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert"></div>
     <div class="mb-3">
         <label asp-for="Title" class="form-label"></label>
         <input asp-for="Title" class="form-control" />
@@ -30,10 +36,82 @@
         <label asp-for="AccessMode" class="form-label"></label>
         <select asp-for="AccessMode" class="form-select" asp-items="Html.GetEnumSelectList<WebInventory.Domain.Enums.InventoryAccessMode>()"></select>
     </div>
+    <div id="autosaveStatus" class="small text-muted mb-3" role="status">Autosave ready.</div>
     <button type="submit" class="btn btn-primary">Save</button>
     <a class="btn btn-link" asp-action="Details" asp-route-id="@Model.Id">Cancel</a>
 </form>
 
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
+    <script>
+        (() => {
+            const form = document.getElementById('inventorySettingsForm');
+            const status = document.getElementById('autosaveStatus');
+            const rowVersion = form.querySelector('[name="RowVersion"]');
+            const token = form.querySelector('[name="__RequestVerificationToken"]');
+            let dirty = false;
+            let saving = false;
+            let blockedByConflict = false;
+
+            form.addEventListener('input', () => {
+                dirty = true;
+                setStatus('Unsaved changes.', 'text-muted');
+            });
+
+            form.addEventListener('change', () => {
+                dirty = true;
+                setStatus('Unsaved changes.', 'text-muted');
+            });
+
+            form.addEventListener('submit', () => {
+                dirty = false;
+            });
+
+            window.setInterval(async () => {
+                if (!dirty || saving || blockedByConflict) {
+                    return;
+                }
+
+                saving = true;
+                setStatus('Autosaving...', 'text-muted');
+
+                try {
+                    const response = await fetch('@Url.Action("Autosave", "Inventories", new { id = Model.Id })', {
+                        method: 'POST',
+                        body: new FormData(form),
+                        headers: {
+                            'RequestVerificationToken': token.value,
+                            'X-Requested-With': 'XMLHttpRequest'
+                        }
+                    });
+
+                    if (response.ok) {
+                        const result = await response.json();
+                        rowVersion.value = result.rowVersion;
+                        dirty = false;
+                        setStatus(`Autosaved ${result.savedAt}.`, 'text-success');
+                        return;
+                    }
+
+                    if (response.status === 409) {
+                        const result = await response.json();
+                        blockedByConflict = true;
+                        setStatus(result.message || 'Autosave conflict. Refresh before continuing.', 'text-danger');
+                        return;
+                    }
+
+                    setStatus('Autosave failed. Check the field values and try again.', 'text-danger');
+                } catch {
+                    setStatus('Autosave failed. Check your connection.', 'text-danger');
+                } finally {
+                    saving = false;
+                }
+            }, 8000);
+
+            function setStatus(message, className) {
+                status.className = `small mb-3 ${className}`;
+                status.textContent = message;
+            }
+        })();
+    </script>
 }

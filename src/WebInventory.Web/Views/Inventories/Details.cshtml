@@ -1,9 +1,12 @@
 @using System.Security.Claims
 @model WebInventory.Domain.Entities.Inventory
+@{
+    var canManage = ViewBag.CanManage is true;
+}
 
 <div class="d-flex justify-content-between align-items-center mb-3">
     <h1>@Model.Title</h1>
-    @if (User.Identity?.IsAuthenticated == true && User.FindFirstValue(ClaimTypes.NameIdentifier) == Model.OwnerId)
+    @if (canManage)
     {
         <div>
             <a class="btn btn-outline-secondary" asp-action="Edit" asp-route-id="@Model.Id">Edit</a>

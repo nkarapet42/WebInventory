@@ -7,6 +7,7 @@ namespace WebInventory.Application.Interfaces;
 
 public interface IAccessControlService
 {
+    Task<bool> CanManageAsync(Inventory inventory, ClaimsPrincipal user);
     Task<bool> CanWriteAsync(Inventory inventory, ClaimsPrincipal user);
     Task<IReadOnlyList<ApplicationUser>> GetWritersAsync(Guid inventoryId);
     Task<AccessChangeResult> AddWriterAsync(Guid inventoryId, string userIdentifier);

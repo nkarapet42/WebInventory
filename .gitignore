@@ -21,6 +21,7 @@ ScaffoldingReadMe.txt
 *.snupkg
 .env
 .vs
+.idea
 ~$*
 *~
 CodeCoverage/

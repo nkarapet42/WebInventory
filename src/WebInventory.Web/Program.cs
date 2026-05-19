@@ -1,10 +1,13 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Authentication;
 using WebInventory.Application.Interfaces;
+using WebInventory.Domain.Constants;
 using WebInventory.Domain.Identity;
 using WebInventory.Infrastructure.Data;
 using WebInventory.Infrastructure.Services;
 using WebInventory.Infrastructure.Services.CustomId;
+using WebInventory.Web.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -17,6 +20,11 @@ builder.Services.AddDefaultIdentity<ApplicationUser>(options =>
     })
     .AddRoles<IdentityRole>()
     .AddEntityFrameworkStores<ApplicationDbContext>();
+builder.Services.ConfigureApplicationCookie(options =>
+{
+    options.AccessDeniedPath = "/";
+});
+builder.Services.AddScoped<IClaimsTransformation, DatabaseRoleClaimsTransformation>();
 builder.Services.AddScoped<IInventoryService, InventoryService>();
 builder.Services.AddScoped<IItemService, ItemService>();
 builder.Services.AddScoped<IAccessControlService, AccessControlService>();
@@ -39,6 +47,7 @@ using (var scope = app.Services.CreateScope())
 {
     var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
     dbContext.Database.Migrate();
+    await SeedIdentityAsync(scope.ServiceProvider, app.Configuration);
 }
 
 if (!app.Environment.IsDevelopment())
@@ -50,6 +59,29 @@ if (!app.Environment.IsDevelopment())
 app.UseRouting();
 
 app.UseAuthentication();
+app.Use(async (context, next) =>
+{
+    if (context.User.Identity?.IsAuthenticated == true)
+    {
+        var userManager = context.RequestServices.GetRequiredService<UserManager<ApplicationUser>>();
+        var signInManager = context.RequestServices.GetRequiredService<SignInManager<ApplicationUser>>();
+        var user = await userManager.GetUserAsync(context.User);
+        if (user is null || await userManager.IsLockedOutAsync(user))
+        {
+            await signInManager.SignOutAsync();
+            if (string.Equals(context.Request.Headers["X-Requested-With"], "XMLHttpRequest", StringComparison.OrdinalIgnoreCase))
+            {
+                context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                return;
+            }
+
+            context.Response.Redirect("/");
+            return;
+        }
+    }
+
+    await next();
+});
 app.UseAuthorization();
 
 app.UseStaticFiles();
@@ -61,3 +93,36 @@ app.MapRazorPages();
 
 
 app.Run();
+
+static async Task SeedIdentityAsync(IServiceProvider services, IConfiguration configuration)
+{
+    var roleManager = services.GetRequiredService<RoleManager<IdentityRole>>();
+    if (!await roleManager.RoleExistsAsync(RoleNames.Admin))
+    {
+        await roleManager.CreateAsync(new IdentityRole(RoleNames.Admin));
+    }
+
+    var configuredEmails = configuration.GetSection("Admin:Emails").Get<string[]>()
+        ?? SplitEmails(configuration["ADMIN_EMAILS"]);
+    if (configuredEmails.Length == 0)
+    {
+        return;
+    }
+
+    var userManager = services.GetRequiredService<UserManager<ApplicationUser>>();
+    foreach (var email in configuredEmails)
+    {
+        var user = await userManager.FindByEmailAsync(email);
+        if (user is not null && !await userManager.IsInRoleAsync(user, RoleNames.Admin))
+        {
+            await userManager.AddToRoleAsync(user, RoleNames.Admin);
+        }
+    }
+}
+
+static string[] SplitEmails(string? value)
+{
+    return string.IsNullOrWhiteSpace(value)
+        ? Array.Empty<string>()
+        : value.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+}

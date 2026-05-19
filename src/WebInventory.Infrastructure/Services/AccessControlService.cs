@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using WebInventory.Application.Interfaces;
 using WebInventory.Application.Models;
+using WebInventory.Domain.Constants;
 using WebInventory.Domain.Entities;
 using WebInventory.Domain.Enums;
 using WebInventory.Domain.Identity;
@@ -23,6 +24,11 @@ public class AccessControlService : IAccessControlService
 
     public async Task<bool> CanWriteAsync(Inventory inventory, ClaimsPrincipal user)
     {
+        if (await IsAdminAsync(user))
+        {
+            return true;
+        }
+
         if (inventory.AccessMode == InventoryAccessMode.PublicWrite)
         {
             return user.Identity?.IsAuthenticated == true;
@@ -42,6 +48,17 @@ public class AccessControlService : IAccessControlService
         return await _dbContext.InventoryAccesses
             .AsNoTracking()
             .AnyAsync(a => a.InventoryId == inventory.Id && a.UserId == userId && a.AccessLevel == AccessLevel.Write);
+    }
+
+    public async Task<bool> CanManageAsync(Inventory inventory, ClaimsPrincipal user)
+    {
+        if (await IsAdminAsync(user))
+        {
+            return true;
+        }
+
+        var userId = _userManager.GetUserId(user);
+        return userId is not null && inventory.OwnerId == userId;
     }
 
     public async Task<IReadOnlyList<ApplicationUser>> GetWritersAsync(Guid inventoryId)
@@ -109,5 +126,17 @@ public class AccessControlService : IAccessControlService
         _dbContext.InventoryAccesses.Remove(access);
         await _dbContext.SaveChangesAsync();
         return AccessChangeResult.Success();
+    }
+
+    private async Task<bool> IsAdminAsync(ClaimsPrincipal user)
+    {
+        var identity = user.Identity;
+        if (identity?.IsAuthenticated != true)
+        {
+            return false;
+        }
+
+        var appUser = await _userManager.GetUserAsync(user);
+        return appUser is not null && await _userManager.IsInRoleAsync(appUser, RoleNames.Admin);
     }
 }

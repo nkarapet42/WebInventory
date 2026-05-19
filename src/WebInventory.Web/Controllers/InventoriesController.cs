@@ -41,6 +41,7 @@ public class InventoriesController : Controller
         {
             return NotFound();
         }
+        ViewBag.CanManage = await _accessControlService.CanManageAsync(inventory, User);
         return View(inventory);
     }
 
@@ -101,7 +102,7 @@ public class InventoriesController : Controller
             return NotFound();
         }
 
-        if (!IsOwner(inventory))
+        if (!await CanManageAsync(inventory))
         {
             return Forbid();
         }
@@ -137,7 +138,7 @@ public class InventoriesController : Controller
             return NotFound();
         }
 
-        if (!IsOwner(inventory))
+        if (!await CanManageAsync(inventory))
         {
             return Forbid();
         }
@@ -181,7 +182,7 @@ public class InventoriesController : Controller
             return NotFound();
         }
 
-        if (!IsOwner(inventory))
+        if (!await CanManageAsync(inventory))
         {
             return Forbid();
         }
@@ -200,7 +201,7 @@ public class InventoriesController : Controller
             return NotFound();
         }
 
-        if (!IsOwner(inventory))
+        if (!await CanManageAsync(inventory))
         {
             return Forbid();
         }
@@ -218,7 +219,7 @@ public class InventoriesController : Controller
             return NotFound();
         }
 
-        if (!IsOwner(inventory))
+        if (!await CanManageAsync(inventory))
         {
             return Forbid();
         }
@@ -242,7 +243,7 @@ public class InventoriesController : Controller
             return NotFound();
         }
 
-        if (!IsOwner(inventory))
+        if (!await CanManageAsync(inventory))
         {
             return Forbid();
         }
@@ -274,7 +275,7 @@ public class InventoriesController : Controller
             return NotFound();
         }
 
-        if (!IsOwner(inventory))
+        if (!await CanManageAsync(inventory))
         {
             return Forbid();
         }
@@ -292,7 +293,7 @@ public class InventoriesController : Controller
             return NotFound();
         }
 
-        if (!IsOwner(inventory))
+        if (!await CanManageAsync(inventory))
         {
             return Forbid();
         }
@@ -324,7 +325,7 @@ public class InventoriesController : Controller
             return NotFound();
         }
 
-        if (!IsOwner(inventory))
+        if (!await CanManageAsync(inventory))
         {
             return Forbid();
         }
@@ -355,10 +356,9 @@ public class InventoriesController : Controller
         };
     }
 
-    private bool IsOwner(Inventory inventory)
+    private async Task<bool> CanManageAsync(Inventory inventory)
     {
-        var userId = _userManager.GetUserId(User);
-        return userId is not null && inventory.OwnerId == userId;
+        return await _accessControlService.CanManageAsync(inventory, User);
     }
 
     private async Task PopulateCategoriesAsync()

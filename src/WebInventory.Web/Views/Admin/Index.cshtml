@@ -1,0 +1,79 @@
+@model IReadOnlyList<AdminUserViewModel>
+
+@{
+    ViewData["Title"] = "Users";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h1>Users</h1>
+</div>
+
+@if (TempData["AdminError"] is string error)
+{
+    <div class="alert alert-danger" role="alert">@error</div>
+}
+
+<div class="table-responsive">
+    <table class="table table-hover align-middle">
+        <thead>
+        <tr>
+            <th>User name</th>
+            <th>Email</th>
+            <th>Email confirmed</th>
+            <th>Status</th>
+            <th>Role</th>
+            <th class="text-end">Actions</th>
+        </tr>
+        </thead>
+        <tbody>
+        @foreach (var user in Model)
+        {
+            <tr>
+                <td>@user.UserName</td>
+                <td>@user.Email</td>
+                <td>@(user.EmailConfirmed ? "Yes" : "No")</td>
+                <td>@(user.IsBlocked ? "Blocked" : "Active")</td>
+                <td>@(user.IsAdmin ? "Admin" : "User")</td>
+                <td>
+                    <div class="d-flex justify-content-end gap-2 flex-wrap">
+                        @if (user.IsBlocked)
+                        {
+                            <form asp-action="Unblock" method="post">
+                                <input type="hidden" name="id" value="@user.Id" />
+                                <button class="btn btn-sm btn-outline-success" type="submit">Unblock</button>
+                            </form>
+                        }
+                        else
+                        {
+                            <form asp-action="Block" method="post">
+                                <input type="hidden" name="id" value="@user.Id" />
+                                <button class="btn btn-sm btn-outline-warning" type="submit">Block</button>
+                            </form>
+                        }
+
+                        @if (user.IsAdmin)
+                        {
+                            <form asp-action="RemoveAdmin" method="post">
+                                <input type="hidden" name="id" value="@user.Id" />
+                                <button class="btn btn-sm btn-outline-secondary" type="submit">Remove admin</button>
+                            </form>
+                        }
+                        else
+                        {
+                            <form asp-action="AddAdmin" method="post">
+                                <input type="hidden" name="id" value="@user.Id" />
+                                <button class="btn btn-sm btn-outline-primary" type="submit">Make admin</button>
+                            </form>
+                        }
+
+                        <form asp-action="Delete" method="post">
+                            <input type="hidden" name="id" value="@user.Id" />
+                            <button class="btn btn-sm btn-outline-danger" type="submit">Delete</button>
+                        </form>
+                    </div>
+                </td>
+            </tr>
+        }
+        </tbody>
+    </table>
+</div>

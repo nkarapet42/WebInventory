@@ -1,0 +1,179 @@
+@using System.Text.Json
+@using WebInventory.Application.Constants
+@using WebInventory.Domain.Enums
+@model InventoryFieldsViewModel
+
+@{
+    ViewData["Title"] = $"Fields - {Model.InventoryTitle}";
+    var fieldsJson = JsonSerializer.Serialize(Model.Fields.Select(field => new
+    {
+        id = field.Id,
+        title = field.Title,
+        description = field.Description,
+        fieldType = field.FieldType.ToString(),
+        fieldTypeValue = (int)field.FieldType,
+        slotNumber = field.SlotNumber,
+        showInTable = field.ShowInTable
+    }));
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h1>Fields</h1>
+        <div class="text-muted">@Model.InventoryTitle</div>
+    </div>
+    <a class="btn btn-outline-secondary" asp-action="Details" asp-route-id="@Model.InventoryId">Back to Inventory</a>
+</div>
+
+@if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
+{
+    <div class="alert alert-danger" role="alert">@Model.ErrorMessage</div>
+}
+
+<div class="row g-4">
+    <div class="col-lg-5">
+        <form asp-action="SaveField" asp-route-id="@Model.InventoryId" method="post">
+            <input type="hidden" asp-for="InventoryId" />
+            <input type="hidden" asp-for="InventoryTitle" />
+            <input type="hidden" asp-for="Form.InventoryId" />
+            <input type="hidden" asp-for="Form.Id" />
+
+            <div class="mb-3">
+                <label asp-for="Form.Title" class="form-label"></label>
+                <input asp-for="Form.Title" class="form-control" />
+                <span asp-validation-for="Form.Title" class="text-danger"></span>
+            </div>
+
+            <div class="mb-3">
+                <label asp-for="Form.Description" class="form-label"></label>
+                <textarea asp-for="Form.Description" class="form-control" rows="3"></textarea>
+                <span asp-validation-for="Form.Description" class="text-danger"></span>
+            </div>
+
+            <div class="row">
+                <div class="col-sm-7 mb-3">
+                    <label asp-for="Form.FieldType" class="form-label">Type</label>
+                    <select asp-for="Form.FieldType" class="form-select" asp-items="Html.GetEnumSelectList<InventoryFieldType>()"></select>
+                    <span asp-validation-for="Form.FieldType" class="text-danger"></span>
+                </div>
+                <div class="col-sm-5 mb-3">
+                    <label asp-for="Form.SlotNumber" class="form-label">Slot</label>
+                    <select asp-for="Form.SlotNumber" class="form-select">
+                        @for (var slot = 1; slot <= InventoryLimits.MaxFieldsPerType; slot++)
+                        {
+                            <option value="@slot">@slot</option>
+                        }
+                    </select>
+                    <span asp-validation-for="Form.SlotNumber" class="text-danger"></span>
+                </div>
+            </div>
+
+            <div class="form-check mb-3">
+                <input asp-for="Form.ShowInTable" class="form-check-input" />
+                <label asp-for="Form.ShowInTable" class="form-check-label">Show in item table</label>
+            </div>
+
+            <div class="d-flex gap-2">
+                <button class="btn btn-primary" type="submit">Save Field</button>
+                <a class="btn btn-outline-secondary" asp-action="Fields" asp-route-id="@Model.InventoryId">Clear</a>
+            </div>
+        </form>
+    </div>
+
+    <div class="col-lg-7">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+            <h2 class="h4 mb-0">Configured Fields</h2>
+            <span class="text-muted small">Drag rows to reorder</span>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover align-middle">
+                <thead>
+                <tr>
+                    <th style="width: 2rem;"></th>
+                    <th>Title</th>
+                    <th>Type</th>
+                    <th>Slot</th>
+                    <th>Table</th>
+                    <th class="text-end">Actions</th>
+                </tr>
+                </thead>
+                <tbody id="fields-sortable">
+                @foreach (var field in Model.Fields)
+                {
+                    <tr data-field-id="@field.Id">
+                        <td class="text-muted field-drag-handle">::</td>
+                        <td>
+                            @field.Title
+                            @if (!string.IsNullOrWhiteSpace(field.Description))
+                            {
+                                <div class="text-muted small">@field.Description</div>
+                            }
+                        </td>
+                        <td>@field.FieldType</td>
+                        <td>@field.SlotNumber</td>
+                        <td>@(field.ShowInTable ? "Yes" : "No")</td>
+                        <td>
+                            <div class="d-flex justify-content-end gap-2">
+                                <button class="btn btn-sm btn-outline-secondary edit-field" type="button" data-field-id="@field.Id">Edit</button>
+                                <form asp-action="DeleteField" asp-route-id="@Model.InventoryId" method="post">
+                                    <input type="hidden" name="fieldId" value="@field.Id" />
+                                    <button class="btn btn-sm btn-outline-danger" type="submit">Delete</button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                }
+                @if (!Model.Fields.Any())
+                {
+                    <tr>
+                        <td colspan="6" class="text-muted">No custom fields configured.</td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
+    <script>
+        const fields = @Html.Raw(fieldsJson);
+        const inventoryId = '@Model.InventoryId';
+
+        document.querySelectorAll('.edit-field').forEach(button => {
+            button.addEventListener('click', () => {
+                const field = fields.find(item => item.id === button.dataset.fieldId);
+                if (!field) {
+                    return;
+                }
+
+                document.getElementById('Form_Id').value = field.id;
+                document.getElementById('Form_Title').value = field.title;
+                document.getElementById('Form_Description').value = field.description || '';
+                document.getElementById('Form_FieldType').value = field.fieldTypeValue.toString();
+                document.getElementById('Form_SlotNumber').value = field.slotNumber.toString();
+                document.getElementById('Form_ShowInTable').checked = field.showInTable;
+            });
+        });
+
+        const sortableBody = document.getElementById('fields-sortable');
+        if (sortableBody && fields.length > 1) {
+            new Sortable(sortableBody, {
+                animation: 150,
+                handle: '.field-drag-handle',
+                onEnd: async () => {
+                    const orderedFields = [...sortableBody.querySelectorAll('tr[data-field-id]')]
+                        .map((row, index) => ({ id: row.dataset.fieldId, displayOrder: index + 1 }));
+
+                    await fetch(`/Inventories/ReorderFields/${inventoryId}`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(orderedFields)
+                    });
+                }
+            });
+        }
+    </script>
+}

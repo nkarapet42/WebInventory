@@ -384,6 +384,178 @@ public class InventoriesController : Controller
         return RedirectToAction(nameof(CustomIds), new { id });
     }
 
+    [Authorize]
+    public async Task<IActionResult> Fields(Guid id)
+    {
+        var inventory = await _inventoryService.GetByIdForEditAsync(id);
+        if (inventory is null)
+        {
+            return NotFound();
+        }
+
+        if (!await CanManageAsync(inventory))
+        {
+            return Forbid();
+        }
+
+        return View(await BuildFieldsViewModelAsync(inventory));
+    }
+
+    [Authorize]
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> SaveField(Guid id, InventoryFieldsViewModel model)
+    {
+        if (id != model.InventoryId || id != model.Form.InventoryId)
+        {
+            return NotFound();
+        }
+
+        var inventory = await _inventoryService.GetByIdForEditAsync(id);
+        if (inventory is null)
+        {
+            return NotFound();
+        }
+
+        if (!await CanManageAsync(inventory))
+        {
+            return Forbid();
+        }
+
+        if (!ModelState.IsValid)
+        {
+            var invalidModel = await BuildFieldsViewModelAsync(inventory, model.Form);
+            invalidModel.ErrorMessage = "Check the field values and try again.";
+            return View("Fields", invalidModel);
+        }
+
+        var duplicateSlot = await _dbContext.InventoryFields
+            .AsNoTracking()
+            .AnyAsync(field =>
+                field.InventoryId == id &&
+                field.FieldType == model.Form.FieldType &&
+                field.SlotNumber == model.Form.SlotNumber &&
+                field.Id != model.Form.Id);
+
+        if (duplicateSlot)
+        {
+            var duplicateModel = await BuildFieldsViewModelAsync(inventory, model.Form);
+            duplicateModel.ErrorMessage = "This field type and slot are already used.";
+            return View("Fields", duplicateModel);
+        }
+
+        var typeCount = await _dbContext.InventoryFields
+            .AsNoTracking()
+            .CountAsync(field =>
+                field.InventoryId == id &&
+                field.FieldType == model.Form.FieldType &&
+                field.Id != model.Form.Id);
+
+        if (model.Form.Id is null && typeCount >= InventoryLimits.MaxFieldsPerType)
+        {
+            var limitModel = await BuildFieldsViewModelAsync(inventory, model.Form);
+            limitModel.ErrorMessage = $"Only {InventoryLimits.MaxFieldsPerType} fields of each type are supported.";
+            return View("Fields", limitModel);
+        }
+
+        if (model.Form.Id is null)
+        {
+            var nextOrder = await _dbContext.InventoryFields
+                .AsNoTracking()
+                .Where(field => field.InventoryId == id)
+                .Select(field => (int?)field.DisplayOrder)
+                .MaxAsync() ?? 0;
+
+            _dbContext.InventoryFields.Add(new InventoryField
+            {
+                Id = Guid.NewGuid(),
+                InventoryId = id,
+                FieldType = model.Form.FieldType,
+                SlotNumber = model.Form.SlotNumber,
+                Title = model.Form.Title.Trim(),
+                Description = model.Form.Description?.Trim(),
+                ShowInTable = model.Form.ShowInTable,
+                DisplayOrder = nextOrder + 1
+            });
+        }
+        else
+        {
+            var field = await _dbContext.InventoryFields
+                .FirstOrDefaultAsync(existing => existing.Id == model.Form.Id && existing.InventoryId == id);
+            if (field is null)
+            {
+                return NotFound();
+            }
+
+            field.FieldType = model.Form.FieldType;
+            field.SlotNumber = model.Form.SlotNumber;
+            field.Title = model.Form.Title.Trim();
+            field.Description = model.Form.Description?.Trim();
+            field.ShowInTable = model.Form.ShowInTable;
+        }
+
+        await _dbContext.SaveChangesAsync();
+        return RedirectToAction(nameof(Fields), new { id });
+    }
+
+    [Authorize]
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> DeleteField(Guid id, Guid fieldId)
+    {
+        var inventory = await _inventoryService.GetByIdForEditAsync(id);
+        if (inventory is null)
+        {
+            return NotFound();
+        }
+
+        if (!await CanManageAsync(inventory))
+        {
+            return Forbid();
+        }
+
+        var field = await _dbContext.InventoryFields
+            .FirstOrDefaultAsync(existing => existing.Id == fieldId && existing.InventoryId == id);
+        if (field is not null)
+        {
+            _dbContext.InventoryFields.Remove(field);
+            await _dbContext.SaveChangesAsync();
+        }
+
+        return RedirectToAction(nameof(Fields), new { id });
+    }
+
+    [Authorize]
+    [HttpPost]
+    [IgnoreAntiforgeryToken]
+    public async Task<IActionResult> ReorderFields(Guid id, [FromBody] IReadOnlyList<FieldReorderItemViewModel> fields)
+    {
+        var inventory = await _inventoryService.GetByIdForEditAsync(id);
+        if (inventory is null)
+        {
+            return NotFound();
+        }
+
+        if (!await CanManageAsync(inventory))
+        {
+            return Forbid();
+        }
+
+        var fieldIds = fields.Select(field => field.Id).ToArray();
+        var existingFields = await _dbContext.InventoryFields
+            .Where(field => field.InventoryId == id && fieldIds.Contains(field.Id))
+            .ToListAsync();
+
+        var orderById = fields.ToDictionary(field => field.Id, field => field.DisplayOrder);
+        foreach (var field in existingFields)
+        {
+            field.DisplayOrder = orderById[field.Id];
+        }
+
+        await _dbContext.SaveChangesAsync();
+        return Ok();
+    }
+
     private static IReadOnlyList<SelectListItem> GetPatternOptions()
     {
         return new List<SelectListItem>
@@ -405,6 +577,47 @@ public class InventoriesController : Controller
     {
         var categories = await _inventoryService.GetCategoriesAsync();
         ViewBag.Categories = new SelectList(categories, "Id", "Name");
+    }
+
+    private async Task<InventoryFieldsViewModel> BuildFieldsViewModelAsync(Inventory inventory, InventoryFieldFormViewModel? form = null)
+    {
+        var fields = await _dbContext.InventoryFields
+            .AsNoTracking()
+            .Where(field => field.InventoryId == inventory.Id)
+            .OrderBy(field => field.DisplayOrder)
+            .ThenBy(field => field.FieldType)
+            .ThenBy(field => field.SlotNumber)
+            .ToListAsync();
+
+        return new InventoryFieldsViewModel
+        {
+            InventoryId = inventory.Id,
+            InventoryTitle = inventory.Title,
+            Fields = fields,
+            Form = form ?? new InventoryFieldFormViewModel
+            {
+                InventoryId = inventory.Id,
+                SlotNumber = FindFirstAvailableSlot(fields, InventoryFieldType.Text)
+            }
+        };
+    }
+
+    private static int FindFirstAvailableSlot(IReadOnlyList<InventoryField> fields, InventoryFieldType fieldType)
+    {
+        var usedSlots = fields
+            .Where(field => field.FieldType == fieldType)
+            .Select(field => field.SlotNumber)
+            .ToHashSet();
+
+        for (var slot = 1; slot <= InventoryLimits.MaxFieldsPerType; slot++)
+        {
+            if (!usedSlots.Contains(slot))
+            {
+                return slot;
+            }
+        }
+
+        return InventoryLimits.MaxFieldsPerType;
     }
 
     private async Task<IReadOnlyList<NumericFieldStatsViewModel>> BuildNumericStatsAsync(Guid inventoryId, IReadOnlyList<InventoryField> fields)

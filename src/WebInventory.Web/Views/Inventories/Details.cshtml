@@ -162,7 +162,7 @@
             <h2 class="h4 mb-0">Fields</h2>
             @if (Model.CanManage)
             {
-                <button class="btn btn-outline-secondary" type="button" disabled>Manage Fields</button>
+                <a class="btn btn-outline-secondary" asp-action="Fields" asp-route-id="@inventory.Id">Manage Fields</a>
             }
         </div>
         <div class="table-responsive">

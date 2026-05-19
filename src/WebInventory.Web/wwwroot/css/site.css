@@ -48,3 +48,9 @@ body {
 .tag-weight-3 { font-size: 1.125rem; }
 .tag-weight-4 { font-size: 1.25rem; }
 .tag-weight-5 { font-size: 1.375rem; }
+
+.field-drag-handle {
+  cursor: grab;
+  font-weight: 600;
+  letter-spacing: .08rem;
+}

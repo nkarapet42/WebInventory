@@ -1,0 +1,145 @@
+@using System.Text.Json
+@model UserProfileViewModel
+
+@{
+    ViewData["Title"] = Model.DisplayName;
+    var ownedRows = Model.OwnedInventories.Select(inventory => new
+    {
+        id = inventory.Id,
+        title = inventory.Title,
+        category = inventory.CategoryName ?? "Uncategorized",
+        itemCount = inventory.ItemCount,
+        accessMode = inventory.AccessMode,
+        updatedAt = inventory.UpdatedAt.ToString("u")
+    });
+    var writableRows = Model.WritableInventories.Select(inventory => new
+    {
+        id = inventory.Id,
+        title = inventory.Title,
+        category = inventory.CategoryName ?? "Uncategorized",
+        owner = inventory.OwnerName,
+        itemCount = inventory.ItemCount,
+        accessMode = inventory.AccessMode,
+        updatedAt = inventory.UpdatedAt.ToString("u")
+    });
+    var jsonOptions = new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
+}
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ag-grid-community/styles/ag-grid.css" />
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ag-grid-community/styles/ag-theme-alpine.css" />
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h1>@Model.DisplayName</h1>
+        @if (!string.IsNullOrWhiteSpace(Model.Email))
+        {
+            <div class="text-muted">@Model.Email</div>
+        }
+    </div>
+    @if (Model.IsCurrentUser)
+    {
+        <a class="btn btn-primary" asp-controller="Inventories" asp-action="Create">New Inventory</a>
+    }
+</div>
+
+<section class="mb-5">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h2 class="h4 mb-0">Owned Inventories</h2>
+        @if (Model.IsCurrentUser)
+        {
+            <div class="d-flex gap-2">
+                <button id="openOwnedBtn" class="btn btn-outline-primary" type="button" disabled>Open</button>
+                <button id="editOwnedBtn" class="btn btn-outline-secondary" type="button" disabled>Edit</button>
+                <button id="deleteOwnedBtn" class="btn btn-outline-danger" type="button" disabled>Delete</button>
+            </div>
+        }
+    </div>
+    <div id="ownedInventoriesGrid" class="ag-theme-alpine" style="height: 360px; width: 100%;"></div>
+</section>
+
+<section>
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h2 class="h4 mb-0">Inventories With Write Access</h2>
+        <button id="openWritableBtn" class="btn btn-outline-primary" type="button" disabled>Open</button>
+    </div>
+    <div id="writableInventoriesGrid" class="ag-theme-alpine" style="height: 360px; width: 100%;"></div>
+</section>
+
+<script src="https://cdn.jsdelivr.net/npm/ag-grid-community/dist/ag-grid-community.min.js"></script>
+<script>
+    (() => {
+        const ownedRows = @Html.Raw(JsonSerializer.Serialize(ownedRows, jsonOptions));
+        const writableRows = @Html.Raw(JsonSerializer.Serialize(writableRows, jsonOptions));
+        const isCurrentUser = @Model.IsCurrentUser.ToString().ToLowerInvariant();
+
+        const baseColumns = [
+            { field: 'title', headerName: 'Inventory', sortable: true, filter: true, flex: 2 },
+            { field: 'category', headerName: 'Category', sortable: true, filter: true },
+            { field: 'itemCount', headerName: 'Items', sortable: true, filter: 'agNumberColumnFilter', width: 110 },
+            { field: 'accessMode', headerName: 'Access', sortable: true, filter: true },
+            { field: 'updatedAt', headerName: 'Updated', sortable: true, filter: true }
+        ];
+
+        const ownedGrid = agGrid.createGrid(document.getElementById('ownedInventoriesGrid'), {
+            columnDefs: baseColumns,
+            rowData: ownedRows,
+            rowSelection: 'single',
+            getRowId: params => params.data.id,
+            onRowDoubleClicked: event => openInventory(event.data.id),
+            onSelectionChanged: event => {
+                if (!isCurrentUser) {
+                    return;
+                }
+
+                const hasSelection = event.api.getSelectedRows().length === 1;
+                document.getElementById('openOwnedBtn').disabled = !hasSelection;
+                document.getElementById('editOwnedBtn').disabled = !hasSelection;
+                document.getElementById('deleteOwnedBtn').disabled = !hasSelection;
+            }
+        });
+
+        const writableGrid = agGrid.createGrid(document.getElementById('writableInventoriesGrid'), {
+            columnDefs: [
+                ...baseColumns.slice(0, 2),
+                { field: 'owner', headerName: 'Owner', sortable: true, filter: true },
+                ...baseColumns.slice(2)
+            ],
+            rowData: writableRows,
+            rowSelection: 'single',
+            getRowId: params => params.data.id,
+            onRowDoubleClicked: event => openInventory(event.data.id),
+            onSelectionChanged: event => {
+                document.getElementById('openWritableBtn').disabled = event.api.getSelectedRows().length !== 1;
+            }
+        });
+
+        document.getElementById('openWritableBtn').addEventListener('click', () => openSelected(writableGrid));
+
+        if (isCurrentUser) {
+            document.getElementById('openOwnedBtn').addEventListener('click', () => openSelected(ownedGrid));
+            document.getElementById('editOwnedBtn').addEventListener('click', () => {
+                const selected = ownedGrid.getSelectedRows();
+                if (selected.length === 1) {
+                    window.location.href = `/Inventories/Edit/${selected[0].id}`;
+                }
+            });
+            document.getElementById('deleteOwnedBtn').addEventListener('click', () => {
+                const selected = ownedGrid.getSelectedRows();
+                if (selected.length === 1) {
+                    window.location.href = `/Inventories/Delete/${selected[0].id}`;
+                }
+            });
+        }
+
+        function openSelected(grid) {
+            const selected = grid.getSelectedRows();
+            if (selected.length === 1) {
+                openInventory(selected[0].id);
+            }
+        }
+
+        function openInventory(id) {
+            window.location.href = `/Inventories/Details/${id}`;
+        }
+    })();
+</script>

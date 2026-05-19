@@ -84,7 +84,7 @@
             {
                 <article class="discussion-post border rounded p-3 mb-2" data-comment-id="@comment.Id">
                     <div class="d-flex justify-content-between gap-3 mb-2">
-                        <a asp-controller="Home" asp-action="Index">@comment.UserName</a>
+                        <a asp-controller="Users" asp-action="Profile" asp-route-id="@comment.UserId">@comment.UserName</a>
                         <time class="text-muted small">@comment.CreatedAt.ToString("u")</time>
                     </div>
                     <div class="discussion-body">@Html.Raw(comment.BodyHtml)</div>
@@ -295,7 +295,7 @@
                 article.dataset.commentId = comment.id;
                 article.innerHTML = `
                     <div class="d-flex justify-content-between gap-3 mb-2">
-                        <a href="/">${escapeHtml(comment.userName)}</a>
+                        <a href="/Users/Profile/${encodeURIComponent(comment.userId)}">${escapeHtml(comment.userName)}</a>
                         <time class="text-muted small">${escapeHtml(comment.createdAt)}</time>
                     </div>
                     <div class="discussion-body">${comment.bodyHtml}</div>`;

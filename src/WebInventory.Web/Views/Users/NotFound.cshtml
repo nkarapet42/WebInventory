@@ -1,0 +1,11 @@
+@model string
+
+@{
+    ViewData["Title"] = "User not found";
+}
+
+<div class="alert alert-warning" role="alert">
+    This user account no longer exists.
+</div>
+
+<a class="btn btn-primary" asp-controller="Home" asp-action="Index">Go Home</a>

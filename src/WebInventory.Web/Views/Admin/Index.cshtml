@@ -29,7 +29,9 @@
         @foreach (var user in Model)
         {
             <tr>
-                <td>@user.UserName</td>
+                <td>
+                    <a asp-controller="Users" asp-action="Profile" asp-route-id="@user.Id">@user.UserName</a>
+                </td>
                 <td>@user.Email</td>
                 <td>@(user.EmailConfirmed ? "Yes" : "No")</td>
                 <td>@(user.IsBlocked ? "Blocked" : "Active")</td>

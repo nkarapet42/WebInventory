@@ -7,6 +7,7 @@ using WebInventory.Domain.Identity;
 using WebInventory.Infrastructure.Data;
 using WebInventory.Infrastructure.Services;
 using WebInventory.Infrastructure.Services.CustomId;
+using WebInventory.Web.Hubs;
 using WebInventory.Web.Services;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -25,6 +26,7 @@ builder.Services.ConfigureApplicationCookie(options =>
     options.AccessDeniedPath = "/";
 });
 builder.Services.AddScoped<IClaimsTransformation, DatabaseRoleClaimsTransformation>();
+builder.Services.AddSingleton<MarkdownService>();
 builder.Services.AddScoped<IInventoryService, InventoryService>();
 builder.Services.AddScoped<IItemService, ItemService>();
 builder.Services.AddScoped<IAccessControlService, AccessControlService>();
@@ -40,6 +42,7 @@ builder.Services.AddSingleton<IIdPartGenerator, DateTimeGenerator>();
 builder.Services.AddSingleton<IIdPartGenerator, SequenceGenerator>();
 builder.Services.AddControllersWithViews();
 builder.Services.AddRazorPages();
+builder.Services.AddSignalR();
 
 var app = builder.Build();
 
@@ -90,6 +93,7 @@ app.MapControllerRoute(
     name: "default",
     pattern: "{controller=Home}/{action=Index}/{id?}");
 app.MapRazorPages();
+app.MapHub<DiscussionHub>("/hubs/discussion");
 
 
 app.Run();

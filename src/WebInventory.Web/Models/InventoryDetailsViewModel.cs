@@ -11,6 +11,7 @@ public class InventoryDetailsViewModel
     public int CommentCount { get; set; }
     public string? LatestCustomIdPattern { get; set; }
     public IReadOnlyList<InventoryField> Fields { get; set; } = Array.Empty<InventoryField>();
+    public IReadOnlyList<InventoryCommentViewModel> Comments { get; set; } = Array.Empty<InventoryCommentViewModel>();
     public IReadOnlyList<NumericFieldStatsViewModel> NumericStats { get; set; } = Array.Empty<NumericFieldStatsViewModel>();
 }
 

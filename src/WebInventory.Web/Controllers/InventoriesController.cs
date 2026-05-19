@@ -10,6 +10,7 @@ using WebInventory.Domain.Enums;
 using WebInventory.Domain.Identity;
 using WebInventory.Infrastructure.Data;
 using WebInventory.Web.Models;
+using WebInventory.Web.Services;
 
 namespace WebInventory.Web.Controllers;
 
@@ -19,6 +20,7 @@ public class InventoriesController : Controller
     private readonly IAccessControlService _accessControlService;
     private readonly ICustomIdGenerator _customIdGenerator;
     private readonly ApplicationDbContext _dbContext;
+    private readonly MarkdownService _markdownService;
     private readonly UserManager<ApplicationUser> _userManager;
 
     public InventoriesController(
@@ -26,12 +28,14 @@ public class InventoriesController : Controller
         IAccessControlService accessControlService,
         ICustomIdGenerator customIdGenerator,
         ApplicationDbContext dbContext,
+        MarkdownService markdownService,
         UserManager<ApplicationUser> userManager)
     {
         _inventoryService = inventoryService;
         _accessControlService = accessControlService;
         _customIdGenerator = customIdGenerator;
         _dbContext = dbContext;
+        _markdownService = markdownService;
         _userManager = userManager;
     }
 
@@ -70,6 +74,27 @@ public class InventoriesController : Controller
             .AsNoTracking()
             .CountAsync(comment => comment.InventoryId == id);
 
+        var commentRows = await _dbContext.Comments
+            .AsNoTracking()
+            .Where(comment => comment.InventoryId == id)
+            .Join(_dbContext.Users,
+                comment => comment.UserId,
+                user => user.Id,
+                (comment, user) => new { Comment = comment, UserName = user.UserName ?? user.Email ?? "User" })
+            .OrderBy(row => row.Comment.CreatedAt)
+            .ToListAsync();
+
+        var comments = commentRows
+            .Select(row => new InventoryCommentViewModel
+            {
+                Id = row.Comment.Id,
+                UserId = row.Comment.UserId,
+                UserName = row.UserName,
+                BodyHtml = _markdownService.ToHtml(row.Comment.BodyMarkdown),
+                CreatedAt = row.Comment.CreatedAt
+            })
+            .ToList();
+
         var model = new InventoryDetailsViewModel
         {
             Inventory = inventory,
@@ -79,6 +104,7 @@ public class InventoriesController : Controller
             CommentCount = commentCount,
             LatestCustomIdPattern = await _inventoryService.GetLatestCustomIdPatternAsync(id),
             Fields = fields,
+            Comments = comments,
             NumericStats = await BuildNumericStatsAsync(id, fields)
         };
 

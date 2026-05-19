@@ -77,9 +77,33 @@
     <section class="tab-pane fade" id="discussion" role="tabpanel" aria-labelledby="discussion-tab" tabindex="0">
         <div class="d-flex justify-content-between align-items-center mb-3">
             <h2 class="h4 mb-0">Discussion</h2>
-            <span class="badge text-bg-secondary">@Model.CommentCount posts</span>
+            <span id="discussion-count" class="badge text-bg-secondary">@Model.CommentCount posts</span>
         </div>
-        <p class="text-muted">No posts yet.</p>
+        <div id="discussion-list" class="discussion-list mb-3">
+            @foreach (var comment in Model.Comments)
+            {
+                <article class="discussion-post border rounded p-3 mb-2" data-comment-id="@comment.Id">
+                    <div class="d-flex justify-content-between gap-3 mb-2">
+                        <a asp-controller="Home" asp-action="Index">@comment.UserName</a>
+                        <time class="text-muted small">@comment.CreatedAt.ToString("u")</time>
+                    </div>
+                    <div class="discussion-body">@Html.Raw(comment.BodyHtml)</div>
+                </article>
+            }
+        </div>
+        <p id="discussion-empty" class="text-muted" hidden="@Model.Comments.Any()">No posts yet.</p>
+
+        @if (User.Identity?.IsAuthenticated == true)
+        {
+            <form id="discussion-form" method="post">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="InventoryId" value="@inventory.Id" />
+                <div class="mb-3">
+                    <textarea class="form-control" name="BodyMarkdown" rows="4" maxlength="4000" required></textarea>
+                </div>
+                <button class="btn btn-primary" type="submit">Post</button>
+            </form>
+        }
     </section>
 
     <section class="tab-pane fade" id="settings" role="tabpanel" aria-labelledby="settings-tab" tabindex="0">
@@ -249,3 +273,69 @@
 <div class="mt-4">
     <a class="btn btn-link" asp-action="Index">Back to list</a>
 </div>
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/@@microsoft/signalr@8.0.7/dist/browser/signalr.min.js"></script>
+    <script>
+        (() => {
+            const inventoryId = '@inventory.Id';
+            const list = document.getElementById('discussion-list');
+            const empty = document.getElementById('discussion-empty');
+            const count = document.getElementById('discussion-count');
+            const form = document.getElementById('discussion-form');
+            let postCount = @Model.CommentCount;
+
+            function appendComment(comment) {
+                if (list.querySelector(`[data-comment-id="${comment.id}"]`)) {
+                    return;
+                }
+
+                const article = document.createElement('article');
+                article.className = 'discussion-post border rounded p-3 mb-2';
+                article.dataset.commentId = comment.id;
+                article.innerHTML = `
+                    <div class="d-flex justify-content-between gap-3 mb-2">
+                        <a href="/">${escapeHtml(comment.userName)}</a>
+                        <time class="text-muted small">${escapeHtml(comment.createdAt)}</time>
+                    </div>
+                    <div class="discussion-body">${comment.bodyHtml}</div>`;
+                list.appendChild(article);
+                postCount += 1;
+                count.textContent = `${postCount} posts`;
+                empty.hidden = true;
+            }
+
+            const connection = new signalR.HubConnectionBuilder()
+                .withUrl('/hubs/discussion')
+                .withAutomaticReconnect()
+                .build();
+
+            connection.on('ReceiveComment', appendComment);
+            connection.start().then(() => connection.invoke('JoinInventory', inventoryId));
+
+            if (form) {
+                form.addEventListener('submit', async event => {
+                    event.preventDefault();
+                    const response = await fetch('/Comments/Create', {
+                        method: 'POST',
+                        body: new FormData(form),
+                        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                    });
+
+                    if (response.ok) {
+                        form.reset();
+                    }
+                });
+            }
+
+            function escapeHtml(value) {
+                return (value || '')
+                    .replaceAll('&', '&amp;')
+                    .replaceAll('<', '&lt;')
+                    .replaceAll('>', '&gt;')
+                    .replaceAll('"', '&quot;')
+                    .replaceAll("'", '&#039;');
+            }
+        })();
+    </script>
+}

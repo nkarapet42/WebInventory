@@ -1,40 +1,251 @@
-@using System.Security.Claims
-@model WebInventory.Domain.Entities.Inventory
+@model InventoryDetailsViewModel
+
 @{
-    var canManage = ViewBag.CanManage is true;
+    var inventory = Model.Inventory;
+    ViewData["Title"] = inventory.Title;
 }
 
 <div class="d-flex justify-content-between align-items-center mb-3">
-    <h1>@Model.Title</h1>
-    @if (canManage)
-    {
-        <div>
-            <a class="btn btn-outline-secondary" asp-action="Edit" asp-route-id="@Model.Id">Edit</a>
-            <a class="btn btn-outline-primary" asp-action="Access" asp-route-id="@Model.Id">Access</a>
-            <a class="btn btn-outline-primary" asp-action="CustomIds" asp-route-id="@Model.Id">Custom IDs</a>
-            <a class="btn btn-outline-danger" asp-action="Delete" asp-route-id="@Model.Id">Delete</a>
-        </div>
-    }
+    <div>
+        <h1>@inventory.Title</h1>
+        <div class="text-muted">@inventory.Category?.Name</div>
+    </div>
+    <div class="d-flex gap-2">
+        @if (Model.CanWrite)
+        {
+            <a class="btn btn-primary" asp-controller="Items" asp-action="Create" asp-route-inventoryId="@inventory.Id">New Item</a>
+        }
+        @if (Model.CanManage)
+        {
+            <a class="btn btn-outline-danger" asp-action="Delete" asp-route-id="@inventory.Id">Delete</a>
+        }
+    </div>
 </div>
 
-<dl class="row">
-    <dt class="col-sm-2">Category</dt>
-    <dd class="col-sm-10">@Model.Category?.Name</dd>
+<ul class="nav nav-tabs mb-3" id="inventoryTabs" role="tablist">
+    <li class="nav-item" role="presentation">
+        <button class="nav-link active" id="items-tab" data-bs-toggle="tab" data-bs-target="#items" type="button" role="tab" aria-controls="items" aria-selected="true">Items</button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="discussion-tab" data-bs-toggle="tab" data-bs-target="#discussion" type="button" role="tab" aria-controls="discussion" aria-selected="false">Discussion</button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="settings-tab" data-bs-toggle="tab" data-bs-target="#settings" type="button" role="tab" aria-controls="settings" aria-selected="false">Settings</button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="custom-ids-tab" data-bs-toggle="tab" data-bs-target="#custom-ids" type="button" role="tab" aria-controls="custom-ids" aria-selected="false">Custom IDs</button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="access-tab" data-bs-toggle="tab" data-bs-target="#access" type="button" role="tab" aria-controls="access" aria-selected="false">Access</button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="fields-tab" data-bs-toggle="tab" data-bs-target="#fields" type="button" role="tab" aria-controls="fields" aria-selected="false">Fields</button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="stats-tab" data-bs-toggle="tab" data-bs-target="#stats" type="button" role="tab" aria-controls="stats" aria-selected="false">Stats</button>
+    </li>
+</ul>
 
-    <dt class="col-sm-2">Description</dt>
-    <dd class="col-sm-10">@Model.DescriptionMarkdown</dd>
+<div class="tab-content" id="inventoryTabsContent">
+    <section class="tab-pane fade show active" id="items" role="tabpanel" aria-labelledby="items-tab" tabindex="0">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h2 class="h4 mb-0">Items</h2>
+            <a class="btn btn-outline-primary" asp-controller="Items" asp-action="Index" asp-route-inventoryId="@inventory.Id">Open Table</a>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover align-middle">
+                <thead>
+                <tr>
+                    <th>Inventory</th>
+                    <th class="text-end">Items</th>
+                    <th>Access</th>
+                    <th>Updated</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr>
+                    <td>@inventory.Title</td>
+                    <td class="text-end">@Model.ItemCount</td>
+                    <td>@inventory.AccessMode</td>
+                    <td>@inventory.UpdatedAt.ToString("g")</td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
 
-    <dt class="col-sm-2">Access</dt>
-    <dd class="col-sm-10">@Model.AccessMode</dd>
+    <section class="tab-pane fade" id="discussion" role="tabpanel" aria-labelledby="discussion-tab" tabindex="0">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h2 class="h4 mb-0">Discussion</h2>
+            <span class="badge text-bg-secondary">@Model.CommentCount posts</span>
+        </div>
+        <p class="text-muted">No posts yet.</p>
+    </section>
 
-    <dt class="col-sm-2">Image</dt>
-    <dd class="col-sm-10">@Model.ImageUrl</dd>
+    <section class="tab-pane fade" id="settings" role="tabpanel" aria-labelledby="settings-tab" tabindex="0">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h2 class="h4 mb-0">Settings</h2>
+            @if (Model.CanManage)
+            {
+                <a class="btn btn-outline-secondary" asp-action="Edit" asp-route-id="@inventory.Id">Edit Settings</a>
+            }
+        </div>
+        <dl class="row">
+            <dt class="col-sm-3">Title</dt>
+            <dd class="col-sm-9">@inventory.Title</dd>
 
-    <dt class="col-sm-2">Updated</dt>
-    <dd class="col-sm-10">@Model.UpdatedAt.ToString("u")</dd>
-</dl>
+            <dt class="col-sm-3">Description</dt>
+            <dd class="col-sm-9">@inventory.DescriptionMarkdown</dd>
 
-<div class="d-flex gap-2">
-    <a class="btn btn-outline-primary" asp-controller="Items" asp-action="Index" asp-route-inventoryId="@Model.Id">Items</a>
+            <dt class="col-sm-3">Category</dt>
+            <dd class="col-sm-9">@(inventory.Category?.Name ?? "Uncategorized")</dd>
+
+            <dt class="col-sm-3">Image</dt>
+            <dd class="col-sm-9">
+                @if (string.IsNullOrWhiteSpace(inventory.ImageUrl))
+                {
+                    <span class="text-muted">None</span>
+                }
+                else
+                {
+                    <a href="@inventory.ImageUrl">@inventory.ImageUrl</a>
+                }
+            </dd>
+
+            <dt class="col-sm-3">Updated</dt>
+            <dd class="col-sm-9">@inventory.UpdatedAt.ToString("u")</dd>
+        </dl>
+    </section>
+
+    <section class="tab-pane fade" id="custom-ids" role="tabpanel" aria-labelledby="custom-ids-tab" tabindex="0">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h2 class="h4 mb-0">Custom IDs</h2>
+            @if (Model.CanManage)
+            {
+                <a class="btn btn-outline-primary" asp-action="CustomIds" asp-route-id="@inventory.Id">Manage Pattern</a>
+            }
+        </div>
+        <dl class="row">
+            <dt class="col-sm-3">Current pattern</dt>
+            <dd class="col-sm-9"><code>@(Model.LatestCustomIdPattern ?? "SEQ:5")</code></dd>
+        </dl>
+    </section>
+
+    <section class="tab-pane fade" id="access" role="tabpanel" aria-labelledby="access-tab" tabindex="0">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h2 class="h4 mb-0">Access</h2>
+            @if (Model.CanManage)
+            {
+                <a class="btn btn-outline-primary" asp-action="Access" asp-route-id="@inventory.Id">Manage Access</a>
+            }
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover align-middle">
+                <thead>
+                <tr>
+                    <th>Mode</th>
+                    <th>Write Access</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr>
+                    <td>@inventory.AccessMode</td>
+                    <td>@(Model.CanWrite ? "Available" : "Read only")</td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <section class="tab-pane fade" id="fields" role="tabpanel" aria-labelledby="fields-tab" tabindex="0">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h2 class="h4 mb-0">Fields</h2>
+            @if (Model.CanManage)
+            {
+                <button class="btn btn-outline-secondary" type="button" disabled>Manage Fields</button>
+            }
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover align-middle">
+                <thead>
+                <tr>
+                    <th>Title</th>
+                    <th>Type</th>
+                    <th>Slot</th>
+                    <th>Shown in table</th>
+                </tr>
+                </thead>
+                <tbody>
+                @foreach (var field in Model.Fields)
+                {
+                    <tr>
+                        <td>
+                            @field.Title
+                            @if (!string.IsNullOrWhiteSpace(field.Description))
+                            {
+                                <div class="text-muted small">@field.Description</div>
+                            }
+                        </td>
+                        <td>@field.FieldType</td>
+                        <td>@field.SlotNumber</td>
+                        <td>@(field.ShowInTable ? "Yes" : "No")</td>
+                    </tr>
+                }
+                @if (!Model.Fields.Any())
+                {
+                    <tr>
+                        <td colspan="4" class="text-muted">No custom fields configured.</td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <section class="tab-pane fade" id="stats" role="tabpanel" aria-labelledby="stats-tab" tabindex="0">
+        <h2 class="h4 mb-3">Stats</h2>
+        <div class="row g-3 mb-3">
+            <div class="col-sm-6 col-lg-3">
+                <div class="border rounded p-3">
+                    <div class="text-muted small">Items</div>
+                    <div class="fs-4">@Model.ItemCount</div>
+                </div>
+            </div>
+            <div class="col-sm-6 col-lg-3">
+                <div class="border rounded p-3">
+                    <div class="text-muted small">Discussion posts</div>
+                    <div class="fs-4">@Model.CommentCount</div>
+                </div>
+            </div>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover align-middle">
+                <thead>
+                <tr>
+                    <th>Numeric field</th>
+                    <th class="text-end">Filled</th>
+                    <th class="text-end">Average</th>
+                    <th class="text-end">Minimum</th>
+                    <th class="text-end">Maximum</th>
+                </tr>
+                </thead>
+                <tbody>
+                @foreach (var stat in Model.NumericStats)
+                {
+                    <tr>
+                        <td>@stat.Label</td>
+                        <td class="text-end">@stat.FilledCount</td>
+                        <td class="text-end">@(stat.Average?.ToString("0.##") ?? "-")</td>
+                        <td class="text-end">@(stat.Minimum?.ToString("0.##") ?? "-")</td>
+                        <td class="text-end">@(stat.Maximum?.ToString("0.##") ?? "-")</td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    </section>
+</div>
+
+<div class="mt-4">
     <a class="btn btn-link" asp-action="Index">Back to list</a>
 </div>

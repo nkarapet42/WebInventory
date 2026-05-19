@@ -2,11 +2,13 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
+using Microsoft.EntityFrameworkCore;
 using WebInventory.Application.Interfaces;
 using WebInventory.Application.Constants;
 using WebInventory.Domain.Entities;
 using WebInventory.Domain.Enums;
 using WebInventory.Domain.Identity;
+using WebInventory.Infrastructure.Data;
 using WebInventory.Web.Models;
 
 namespace WebInventory.Web.Controllers;
@@ -16,13 +18,20 @@ public class InventoriesController : Controller
     private readonly IInventoryService _inventoryService;
     private readonly IAccessControlService _accessControlService;
     private readonly ICustomIdGenerator _customIdGenerator;
+    private readonly ApplicationDbContext _dbContext;
     private readonly UserManager<ApplicationUser> _userManager;
 
-    public InventoriesController(IInventoryService inventoryService, IAccessControlService accessControlService, ICustomIdGenerator customIdGenerator, UserManager<ApplicationUser> userManager)
+    public InventoriesController(
+        IInventoryService inventoryService,
+        IAccessControlService accessControlService,
+        ICustomIdGenerator customIdGenerator,
+        ApplicationDbContext dbContext,
+        UserManager<ApplicationUser> userManager)
     {
         _inventoryService = inventoryService;
         _accessControlService = accessControlService;
         _customIdGenerator = customIdGenerator;
+        _dbContext = dbContext;
         _userManager = userManager;
     }
 
@@ -36,13 +45,44 @@ public class InventoriesController : Controller
     [AllowAnonymous]
     public async Task<IActionResult> Details(Guid id)
     {
-        var inventory = await _inventoryService.GetByIdAsync(id);
+        var inventory = await _dbContext.Inventories
+            .AsNoTracking()
+            .Include(i => i.Category)
+            .FirstOrDefaultAsync(i => i.Id == id);
         if (inventory is null)
         {
             return NotFound();
         }
-        ViewBag.CanManage = await _accessControlService.CanManageAsync(inventory, User);
-        return View(inventory);
+
+        var fields = await _dbContext.InventoryFields
+            .AsNoTracking()
+            .Where(field => field.InventoryId == id)
+            .OrderBy(field => field.DisplayOrder)
+            .ThenBy(field => field.FieldType)
+            .ThenBy(field => field.SlotNumber)
+            .ToListAsync();
+
+        var itemCount = await _dbContext.Items
+            .AsNoTracking()
+            .CountAsync(item => item.InventoryId == id);
+
+        var commentCount = await _dbContext.Comments
+            .AsNoTracking()
+            .CountAsync(comment => comment.InventoryId == id);
+
+        var model = new InventoryDetailsViewModel
+        {
+            Inventory = inventory,
+            CanManage = await _accessControlService.CanManageAsync(inventory, User),
+            CanWrite = await _accessControlService.CanWriteAsync(inventory, User),
+            ItemCount = itemCount,
+            CommentCount = commentCount,
+            LatestCustomIdPattern = await _inventoryService.GetLatestCustomIdPatternAsync(id),
+            Fields = fields,
+            NumericStats = await BuildNumericStatsAsync(id, fields)
+        };
+
+        return View(model);
     }
 
     [Authorize]
@@ -365,5 +405,47 @@ public class InventoriesController : Controller
     {
         var categories = await _inventoryService.GetCategoriesAsync();
         ViewBag.Categories = new SelectList(categories, "Id", "Name");
+    }
+
+    private async Task<IReadOnlyList<NumericFieldStatsViewModel>> BuildNumericStatsAsync(Guid inventoryId, IReadOnlyList<InventoryField> fields)
+    {
+        var items = _dbContext.Items
+            .AsNoTracking()
+            .Where(item => item.InventoryId == inventoryId);
+
+        var configuredNumberFields = fields
+            .Where(field => field.FieldType == InventoryFieldType.Number)
+            .ToDictionary(field => field.SlotNumber);
+
+        return new[]
+        {
+            await BuildNumericSlotStatsAsync(items, configuredNumberFields, 1),
+            await BuildNumericSlotStatsAsync(items, configuredNumberFields, 2),
+            await BuildNumericSlotStatsAsync(items, configuredNumberFields, 3)
+        };
+    }
+
+    private static async Task<NumericFieldStatsViewModel> BuildNumericSlotStatsAsync(
+        IQueryable<Item> items,
+        IReadOnlyDictionary<int, InventoryField> configuredFields,
+        int slotNumber)
+    {
+        var values = slotNumber switch
+        {
+            1 => items.Where(item => item.Num1.HasValue).Select(item => item.Num1!.Value),
+            2 => items.Where(item => item.Num2.HasValue).Select(item => item.Num2!.Value),
+            3 => items.Where(item => item.Num3.HasValue).Select(item => item.Num3!.Value),
+            _ => throw new ArgumentOutOfRangeException(nameof(slotNumber), slotNumber, "Unsupported numeric field slot.")
+        };
+
+        var filledCount = await values.CountAsync();
+        return new NumericFieldStatsViewModel
+        {
+            Label = configuredFields.TryGetValue(slotNumber, out var field) ? field.Title : $"Number {slotNumber}",
+            FilledCount = filledCount,
+            Average = filledCount == 0 ? null : await values.AverageAsync(),
+            Minimum = filledCount == 0 ? null : await values.MinAsync(),
+            Maximum = filledCount == 0 ? null : await values.MaxAsync()
+        };
     }
 }

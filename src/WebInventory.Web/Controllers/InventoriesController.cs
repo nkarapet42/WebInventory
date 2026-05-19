@@ -340,7 +340,6 @@ public class InventoriesController : Controller
 
         var pattern = await _inventoryService.GetLatestCustomIdPatternAsync(id);
         var preview = await _customIdGenerator.GenerateAsync(inventory);
-        ViewBag.PatternOptions = GetPatternOptions();
         return View(new CustomIdPatternViewModel
         {
             InventoryId = id,
@@ -373,13 +372,21 @@ public class InventoriesController : Controller
         if (!ModelState.IsValid)
         {
             model.Preview = await _customIdGenerator.GenerateAsync(inventory);
-            ViewBag.PatternOptions = GetPatternOptions();
             return View(model);
         }
 
         var selectedPattern = string.IsNullOrWhiteSpace(model.Pattern)
             ? CustomIdDefaults.DefaultPattern
             : model.Pattern.Trim();
+
+        var partCount = selectedPattern.Split('|', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).Length;
+        if (partCount > CustomIdDefaults.MaxPatternParts)
+        {
+            ModelState.AddModelError(nameof(model.Pattern), $"Use no more than {CustomIdDefaults.MaxPatternParts} ID parts.");
+            model.Preview = await _customIdGenerator.GenerateAsync(inventory);
+            return View(model);
+        }
+
         await _inventoryService.AddCustomIdPatternAsync(id, selectedPattern);
         return RedirectToAction(nameof(CustomIds), new { id });
     }

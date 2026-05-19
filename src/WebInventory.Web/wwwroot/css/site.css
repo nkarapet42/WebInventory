@@ -54,3 +54,23 @@ body {
   font-weight: 600;
   letter-spacing: .08rem;
 }
+
+.custom-id-builder {
+  min-height: 4rem;
+}
+
+.custom-id-part .part-handle {
+  cursor: grab;
+}
+
+.custom-id-remove-zone {
+  border: 1px dashed #dc3545;
+  border-radius: .375rem;
+  color: #842029;
+  padding: .75rem;
+  text-align: center;
+}
+
+.custom-id-preview {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+}

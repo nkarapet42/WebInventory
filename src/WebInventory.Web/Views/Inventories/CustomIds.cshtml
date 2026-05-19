@@ -1,22 +1,257 @@
+@using System.Text.Json
+@using WebInventory.Application.Constants
 @model WebInventory.Web.Models.CustomIdPatternViewModel
 
-<h1>Custom ID Pattern</h1>
+@{
+    ViewData["Title"] = "Custom ID Pattern";
+    var initialPatternJson = JsonSerializer.Serialize(string.IsNullOrWhiteSpace(Model.Pattern) ? CustomIdDefaults.DefaultPattern : Model.Pattern);
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h1>Custom ID Pattern</h1>
+    <a class="btn btn-outline-secondary" asp-action="Details" asp-route-id="@Model.InventoryId">Back to Inventory</a>
+</div>
 
 <form asp-action="CustomIds" method="post">
     <input type="hidden" asp-for="InventoryId" />
-    <div class="mb-3">
-        <label asp-for="Pattern" class="form-label">Pattern</label>
-        <select asp-for="Pattern" class="form-select" asp-items="ViewBag.PatternOptions"></select>
-        <span asp-validation-for="Pattern" class="text-danger"></span>
+    <input type="hidden" asp-for="Pattern" id="Pattern" />
+    <span asp-validation-for="Pattern" class="text-danger"></span>
+
+    <div class="row g-4">
+        <div class="col-lg-4">
+            <h2 class="h4">Add Part</h2>
+            <div class="d-grid gap-2" id="part-palette">
+                <button class="btn btn-outline-primary" type="button" data-add-part="FIX" data-default-value="INV-">Fixed text</button>
+                <button class="btn btn-outline-primary" type="button" data-add-part="R20">20-bit random</button>
+                <button class="btn btn-outline-primary" type="button" data-add-part="R32">32-bit random</button>
+                <button class="btn btn-outline-primary" type="button" data-add-part="R6">6-digit random</button>
+                <button class="btn btn-outline-primary" type="button" data-add-part="R9">9-digit random</button>
+                <button class="btn btn-outline-primary" type="button" data-add-part="GUID">GUID</button>
+                <button class="btn btn-outline-primary" type="button" data-add-part="DATE" data-default-value="yyyy">Date/time</button>
+                <button class="btn btn-outline-primary" type="button" data-add-part="SEQ" data-default-value="6">Sequence</button>
+            </div>
+        </div>
+
+        <div class="col-lg-8">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <h2 class="h4 mb-0">Builder</h2>
+                <span class="text-muted small">Drag parts to reorder. Drag to remove zone to delete.</span>
+            </div>
+
+            <div id="builder-parts" class="custom-id-builder mb-3"></div>
+            <div id="remove-zone" class="custom-id-remove-zone mb-3">Drop here to remove</div>
+
+            <div class="mb-3">
+                <label class="form-label">Pattern</label>
+                <code id="pattern-preview" class="d-block border rounded p-2"></code>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">Live Preview</label>
+                <div id="live-preview" class="form-control custom-id-preview"></div>
+            </div>
+
+            <button type="submit" class="btn btn-primary">Save</button>
+        </div>
     </div>
-    <div class="mb-3">
-        <label class="form-label">Preview</label>
-        <div class="form-control" readonly>@Model.Preview</div>
-    </div>
-    <button type="submit" class="btn btn-primary">Save</button>
-    <a class="btn btn-link" asp-action="Details" asp-route-id="@Model.InventoryId">Back</a>
 </form>
 
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
+    <script>
+        const maxParts = @CustomIdDefaults.MaxPatternParts;
+        const initialPattern = @Html.Raw(initialPatternJson);
+        const partDefinitions = {
+            FIX: {
+                label: 'Fixed text',
+                help: 'Adds exact text. Use for prefixes like EQ-, LAP-, DOC-.',
+                placeholder: 'EQ-',
+                sample: value => value || ''
+            },
+            R20: {
+                label: '20-bit random',
+                help: 'Adds a random 20-bit hexadecimal value.',
+                sample: () => 'A7E3A'
+            },
+            R32: {
+                label: '32-bit random',
+                help: 'Adds a random 32-bit hexadecimal value.',
+                sample: () => 'AB42EF19'
+            },
+            R6: {
+                label: '6-digit random',
+                help: 'Adds a random number padded to 6 digits.',
+                sample: () => '042913'
+            },
+            R9: {
+                label: '9-digit random',
+                help: 'Adds a random number padded to 9 digits.',
+                sample: () => '104209337'
+            },
+            GUID: {
+                label: 'GUID',
+                help: 'Adds a compact GUID without dashes.',
+                sample: () => 'b6f2d9e17d044a44a0b55a3b1c2d9a6f'
+            },
+            DATE: {
+                label: 'Date/time',
+                help: 'Uses .NET date formatting. Examples: yyyy, yyyyMMdd, HHmm.',
+                placeholder: 'yyyyMMdd',
+                sample: value => formatDatePreview(value || 'yyyyMMdd')
+            },
+            SEQ: {
+                label: 'Sequence',
+                help: 'Uses the next sequence number inside this inventory. Value controls leading zero length.',
+                placeholder: '6',
+                sample: value => (13).toString().padStart(parseInt(value || '0', 10) || 0, '0')
+            }
+        };
+
+        const builder = document.getElementById('builder-parts');
+        const removeZone = document.getElementById('remove-zone');
+        const patternInput = document.getElementById('Pattern');
+        const patternPreview = document.getElementById('pattern-preview');
+        const livePreview = document.getElementById('live-preview');
+
+        parsePattern(initialPattern).forEach(part => addPart(part.type, part.value));
+        if (!builder.children.length) {
+            addPart('FIX', 'INV-');
+            addPart('SEQ', '6');
+        }
+        updateOutput();
+
+        document.querySelectorAll('[data-add-part]').forEach(button => {
+            button.addEventListener('click', () => {
+                if (builder.children.length >= maxParts) {
+                    return;
+                }
+
+                addPart(button.dataset.addPart, button.dataset.defaultValue || '');
+                updateOutput();
+            });
+        });
+
+        new Sortable(builder, {
+            animation: 150,
+            group: 'custom-id-parts',
+            handle: '.part-handle',
+            onSort: updateOutput,
+            onRemove: updateOutput
+        });
+
+        new Sortable(removeZone, {
+            group: 'custom-id-parts',
+            onAdd: event => {
+                event.item.remove();
+                updateOutput();
+            }
+        });
+
+        document.addEventListener('input', event => {
+            if (event.target.matches('[data-part-value]')) {
+                updateOutput();
+            }
+        });
+
+        document.addEventListener('click', event => {
+            const removeButton = event.target.closest('[data-remove-part]');
+            if (removeButton) {
+                removeButton.closest('[data-part-type]').remove();
+                updateOutput();
+            }
+        });
+
+        function addPart(type, value = '') {
+            const definition = partDefinitions[type];
+            const element = document.createElement('div');
+            element.className = 'custom-id-part border rounded p-3 mb-2';
+            element.dataset.partType = type;
+            element.innerHTML = `
+                <div class="d-flex align-items-start gap-2">
+                    <button class="btn btn-sm btn-outline-secondary part-handle" type="button" title="Drag">::</button>
+                    <div class="flex-grow-1">
+                        <div class="d-flex align-items-center gap-2 mb-2">
+                            <strong>${definition.label}</strong>
+                            <button class="btn btn-sm btn-link p-0" type="button" data-bs-toggle="popover" data-bs-trigger="focus" data-bs-content="${escapeAttribute(definition.help)}">Help</button>
+                        </div>
+                        ${renderValueInput(type, definition, value)}
+                    </div>
+                    <button class="btn btn-sm btn-outline-danger" type="button" data-remove-part>Remove</button>
+                </div>`;
+            builder.appendChild(element);
+            bootstrap.Popover.getOrCreateInstance(element.querySelector('[data-bs-toggle="popover"]'));
+        }
+
+        function renderValueInput(type, definition, value) {
+            if (!['FIX', 'DATE', 'SEQ'].includes(type)) {
+                return '<input data-part-value type="hidden" value="" />';
+            }
+
+            return `
+                <label class="form-label small">${type === 'FIX' ? 'Text' : 'Format'}</label>
+                <input data-part-value class="form-control" value="${escapeAttribute(value || '')}" placeholder="${escapeAttribute(definition.placeholder || '')}" />`;
+        }
+
+        function updateOutput() {
+            const parts = [...builder.querySelectorAll('[data-part-type]')].slice(0, maxParts);
+            const pattern = parts
+                .map(part => serializePart(part.dataset.partType, part.querySelector('[data-part-value]')?.value || ''))
+                .filter(Boolean)
+                .join('|');
+
+            patternInput.value = pattern;
+            patternPreview.textContent = pattern;
+            livePreview.textContent = parts
+                .map(part => {
+                    const type = part.dataset.partType;
+                    const value = part.querySelector('[data-part-value]')?.value || '';
+                    return partDefinitions[type].sample(value);
+                })
+                .join('');
+        }
+
+        function serializePart(type, value) {
+            if (['FIX', 'DATE', 'SEQ'].includes(type)) {
+                return `${type}:${value}`;
+            }
+
+            return type;
+        }
+
+        function parsePattern(pattern) {
+            return (pattern || '')
+                .split('|')
+                .map(raw => raw.trim())
+                .filter(Boolean)
+                .map(raw => {
+                    const separator = raw.indexOf(':');
+                    return separator === -1
+                        ? { type: raw.toUpperCase(), value: '' }
+                        : { type: raw.substring(0, separator).toUpperCase(), value: raw.substring(separator + 1) };
+                })
+                .filter(part => Object.prototype.hasOwnProperty.call(partDefinitions, part.type));
+        }
+
+        function formatDatePreview(format) {
+            const now = new Date();
+            const values = {
+                yyyy: now.getFullYear().toString(),
+                MM: (now.getMonth() + 1).toString().padStart(2, '0'),
+                dd: now.getDate().toString().padStart(2, '0'),
+                HH: now.getHours().toString().padStart(2, '0'),
+                mm: now.getMinutes().toString().padStart(2, '0')
+            };
+
+            return format.replace(/yyyy|MM|dd|HH|mm/g, token => values[token] || token);
+        }
+
+        function escapeAttribute(value) {
+            return (value || '')
+                .replaceAll('&', '&amp;')
+                .replaceAll('"', '&quot;')
+                .replaceAll('<', '&lt;')
+                .replaceAll('>', '&gt;');
+        }
+    </script>
 }

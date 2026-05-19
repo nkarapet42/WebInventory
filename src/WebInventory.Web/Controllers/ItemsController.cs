@@ -1,9 +1,11 @@
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using WebInventory.Application.Interfaces;
 using WebInventory.Domain.Entities;
 using WebInventory.Domain.Enums;
+using WebInventory.Domain.Identity;
 using WebInventory.Infrastructure.Data;
 using WebInventory.Web.Models;
 
@@ -17,19 +19,22 @@ public class ItemsController : Controller
     private readonly IAccessControlService _accessControlService;
     private readonly ICustomIdGenerator _customIdGenerator;
     private readonly ApplicationDbContext _dbContext;
+    private readonly UserManager<ApplicationUser> _userManager;
 
     public ItemsController(
         IItemService itemService,
         IInventoryService inventoryService,
         IAccessControlService accessControlService,
         ICustomIdGenerator customIdGenerator,
-        ApplicationDbContext dbContext)
+        ApplicationDbContext dbContext,
+        UserManager<ApplicationUser> userManager)
     {
         _itemService = itemService;
         _inventoryService = inventoryService;
         _accessControlService = accessControlService;
         _customIdGenerator = customIdGenerator;
         _dbContext = dbContext;
+        _userManager = userManager;
     }
 
     [AllowAnonymous]
@@ -45,6 +50,24 @@ public class ItemsController : Controller
         ViewBag.CanWrite = await CanWriteAsync(inventory);
         ViewBag.Fields = await GetFieldsAsync(inventoryId);
         var items = await _itemService.GetByInventoryAsync(inventoryId);
+        var itemIds = items.Select(item => item.Id).ToArray();
+        ViewBag.LikeCounts = await _dbContext.ItemLikes
+            .AsNoTracking()
+            .Where(like => itemIds.Contains(like.ItemId))
+            .GroupBy(like => like.ItemId)
+            .Select(group => new { ItemId = group.Key, Count = group.Count() })
+            .ToDictionaryAsync(row => row.ItemId, row => row.Count);
+
+        var userId = _userManager.GetUserId(User);
+        var likedItemIds = userId is null
+            ? new List<Guid>()
+            : await _dbContext.ItemLikes
+                .AsNoTracking()
+                .Where(like => like.UserId == userId && itemIds.Contains(like.ItemId))
+                .Select(like => like.ItemId)
+                .ToListAsync();
+        ViewBag.LikedItemIds = likedItemIds.ToHashSet();
+
         return View(items);
     }
 
@@ -297,6 +320,56 @@ public class ItemsController : Controller
 
         await _itemService.DeleteAsync(item);
         return RedirectToAction(nameof(Index), new { inventoryId = item.InventoryId });
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> ToggleLike(Guid id)
+    {
+        var userId = _userManager.GetUserId(User);
+        if (userId is null)
+        {
+            return Forbid();
+        }
+
+        var item = await _dbContext.Items
+            .AsNoTracking()
+            .FirstOrDefaultAsync(existing => existing.Id == id);
+        if (item is null)
+        {
+            return NotFound();
+        }
+
+        var existingLike = await _dbContext.ItemLikes
+            .FirstOrDefaultAsync(like => like.ItemId == id && like.UserId == userId);
+
+        var liked = existingLike is null;
+        if (existingLike is null)
+        {
+            _dbContext.ItemLikes.Add(new ItemLike
+            {
+                ItemId = id,
+                UserId = userId,
+                CreatedAt = DateTime.UtcNow
+            });
+        }
+        else
+        {
+            _dbContext.ItemLikes.Remove(existingLike);
+        }
+
+        await _dbContext.SaveChangesAsync();
+
+        var likeCount = await _dbContext.ItemLikes
+            .AsNoTracking()
+            .CountAsync(like => like.ItemId == id);
+
+        return Json(new
+        {
+            itemId = id,
+            liked,
+            likeCount
+        });
     }
 
     private async Task<bool> CanWriteAsync(Inventory inventory)

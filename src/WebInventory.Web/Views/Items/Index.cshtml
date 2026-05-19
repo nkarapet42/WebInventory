@@ -6,10 +6,15 @@
     var inventory = (Inventory)ViewBag.Inventory;
     var fields = ((IReadOnlyList<InventoryField>)ViewBag.Fields).Where(field => field.ShowInTable).ToList();
     var canWrite = ViewBag.CanWrite is true;
+    var likeCounts = (Dictionary<Guid, int>)ViewBag.LikeCounts;
+    var likedItemIds = (HashSet<Guid>)ViewBag.LikedItemIds;
+    var isAuthenticated = User.Identity?.IsAuthenticated == true;
     var rowData = Model.Select(item => new
     {
         id = item.Id,
         customId = item.CustomId,
+        likeCount = likeCounts.TryGetValue(item.Id, out var likeCount) ? likeCount : 0,
+        likedByCurrentUser = likedItemIds.Contains(item.Id),
         text1 = item.Text1,
         text2 = item.Text2,
         text3 = item.Text3,
@@ -45,6 +50,13 @@
 <div class="d-flex justify-content-between align-items-center mb-3">
     <h1>Items for @inventory.Title</h1>
     <div class="d-flex gap-2">
+        @if (isAuthenticated)
+        {
+            <form id="likeForm" method="post">
+                @Html.AntiForgeryToken()
+                <button id="likeItemBtn" class="btn btn-outline-primary" type="button" disabled>Like</button>
+            </form>
+        }
         @if (canWrite)
         {
             <a class="btn btn-primary" asp-action="Create" asp-route-inventoryId="@inventory.Id">New Item</a>
@@ -63,9 +75,11 @@
     const rowData = @Html.Raw(rowDataJson);
     const fieldColumns = @Html.Raw(columnDataJson);
     const canWrite = @canWrite.ToString().ToLowerInvariant();
+    const isAuthenticated = @isAuthenticated.ToString().ToLowerInvariant();
     const gridOptions = {
         columnDefs: [
             { field: 'customId', headerName: 'Custom ID', sortable: true, filter: true },
+            { field: 'likeCount', headerName: 'Likes', sortable: true, filter: 'agNumberColumnFilter', width: 110 },
             ...fieldColumns.map(column => ({
                 field: column.field,
                 headerName: column.headerName,
@@ -79,13 +93,17 @@
         rowSelection: 'single',
         getRowId: params => params.data.id,
         onSelectionChanged: event => {
-            if (!canWrite) {
-                return;
-            }
             const selected = event.api.getSelectedRows();
             const hasSelection = selected.length === 1;
-            document.getElementById('editItemBtn').disabled = !hasSelection;
-            document.getElementById('deleteItemBtn').disabled = !hasSelection;
+            if (isAuthenticated) {
+                const likeButton = document.getElementById('likeItemBtn');
+                likeButton.disabled = !hasSelection;
+                likeButton.textContent = hasSelection && selected[0].likedByCurrentUser ? 'Unlike' : 'Like';
+            }
+            if (canWrite) {
+                document.getElementById('editItemBtn').disabled = !hasSelection;
+                document.getElementById('deleteItemBtn').disabled = !hasSelection;
+            }
         },
         getContextMenuItems: params => {
             if (!canWrite) {
@@ -106,6 +124,39 @@
 
     const gridDiv = document.getElementById('itemsGrid');
     const gridApi = agGrid.createGrid(gridDiv, gridOptions);
+
+    if (isAuthenticated) {
+        document.getElementById('likeItemBtn').addEventListener('click', async () => {
+            const selected = gridApi.getSelectedRows();
+            if (selected.length !== 1) {
+                return;
+            }
+
+            const token = document.querySelector('#likeForm input[name="__RequestVerificationToken"]').value;
+            const response = await fetch(`/Items/ToggleLike/${selected[0].id}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'RequestVerificationToken': token
+                }
+            });
+
+            if (!response.ok) {
+                return;
+            }
+
+            const result = await response.json();
+            const rowNode = gridApi.getRowNode(result.itemId);
+            if (rowNode) {
+                rowNode.setData({
+                    ...rowNode.data,
+                    likeCount: result.likeCount,
+                    likedByCurrentUser: result.liked
+                });
+                document.getElementById('likeItemBtn').textContent = result.liked ? 'Unlike' : 'Like';
+            }
+        });
+    }
 
     if (canWrite) {
         document.getElementById('editItemBtn').addEventListener('click', () => {

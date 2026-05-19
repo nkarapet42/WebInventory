@@ -31,16 +31,16 @@ body {
 }
 
 .tag-cloud-item {
-  border: 1px solid #dee2e6;
+  border: 1px solid var(--bs-border-color);
   border-radius: .375rem;
-  color: #212529;
+  color: var(--bs-body-color);
   padding: .25rem .5rem;
   text-decoration: none;
 }
 
 .tag-cloud-item:hover {
-  background-color: #f8f9fa;
-  color: #0d6efd;
+  background-color: var(--bs-secondary-bg);
+  color: var(--bs-link-color);
 }
 
 .tag-weight-1 { font-size: .875rem; }

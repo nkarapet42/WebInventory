@@ -1,8 +1,115 @@
-﻿@{
-    ViewData["Title"] = "Home Page";
+﻿@model HomeIndexViewModel
+
+@{
+    ViewData["Title"] = "Home";
 }
 
-<div class="text-center">
-    <h1 class="display-4">Welcome</h1>
-    <p>Learn about <a href="https://learn.microsoft.com/aspnet/core">building Web apps with ASP.NET Core</a>.</p>
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h1>Inventory Management</h1>
+    @if (User.Identity?.IsAuthenticated == true)
+    {
+        <a class="btn btn-primary" asp-controller="Inventories" asp-action="Create">New Inventory</a>
+    }
 </div>
+
+<section class="mb-5">
+    <div class="d-flex justify-content-between align-items-center mb-2">
+        <h2 class="h4 mb-0">Latest Inventories</h2>
+        <a asp-controller="Inventories" asp-action="Index">View all</a>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover align-middle">
+            <thead>
+            <tr>
+                <th>Inventory</th>
+                <th>Category</th>
+                <th>Creator</th>
+                <th class="text-end">Items</th>
+                <th>Updated</th>
+            </tr>
+            </thead>
+            <tbody>
+            @foreach (var inventory in Model.LatestInventories)
+            {
+                <tr>
+                    <td>
+                        <a asp-controller="Inventories" asp-action="Details" asp-route-id="@inventory.Id">@inventory.Title</a>
+                        @if (!string.IsNullOrWhiteSpace(inventory.DescriptionMarkdown))
+                        {
+                            <div class="text-muted small text-truncate" style="max-width: 38rem;">@inventory.DescriptionMarkdown</div>
+                        }
+                    </td>
+                    <td>@(inventory.CategoryName ?? "Other")</td>
+                    <td>@(inventory.CreatorName ?? "Unknown")</td>
+                    <td class="text-end">@inventory.ItemCount</td>
+                    <td>@inventory.UpdatedAt.ToString("g")</td>
+                </tr>
+            }
+            @if (!Model.LatestInventories.Any())
+            {
+                <tr>
+                    <td colspan="5" class="text-muted">No inventories yet.</td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </div>
+</section>
+
+<section class="mb-5">
+    <h2 class="h4 mb-2">Top 5 Popular Inventories</h2>
+    <div class="table-responsive">
+        <table class="table table-hover align-middle">
+            <thead>
+            <tr>
+                <th>Inventory</th>
+                <th>Creator</th>
+                <th class="text-end">Items</th>
+                <th>Updated</th>
+            </tr>
+            </thead>
+            <tbody>
+            @foreach (var inventory in Model.PopularInventories)
+            {
+                <tr>
+                    <td>
+                        <a asp-controller="Inventories" asp-action="Details" asp-route-id="@inventory.Id">@inventory.Title</a>
+                    </td>
+                    <td>@(inventory.CreatorName ?? "Unknown")</td>
+                    <td class="text-end">@inventory.ItemCount</td>
+                    <td>@inventory.UpdatedAt.ToString("g")</td>
+                </tr>
+            }
+            @if (!Model.PopularInventories.Any())
+            {
+                <tr>
+                    <td colspan="4" class="text-muted">No inventory activity yet.</td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </div>
+</section>
+
+<section>
+    <h2 class="h4 mb-2">Tags</h2>
+    @if (Model.TagCloud.Any())
+    {
+        <div class="d-flex flex-wrap gap-2">
+            @foreach (var tag in Model.TagCloud)
+            {
+                <a class="tag-cloud-item tag-weight-@tag.Weight"
+                   asp-controller="Search"
+                   asp-action="Index"
+                   asp-route-q="@tag.Name"
+                   title="@tag.InventoryCount inventories">
+                    @tag.Name
+                </a>
+            }
+        </div>
+    }
+    else
+    {
+        <p class="text-muted">No tags yet.</p>
+    }
+</section>

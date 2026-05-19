@@ -46,6 +46,26 @@ public partial class SearchService : ISearchService
             .Take(limit)
             .ToListAsync();
 
+        if (tags.Count > 0 && inventories.Count < limit)
+        {
+            var tagIds = tags.Select(tag => tag.Id).ToArray();
+            var taggedInventories = await _dbContext.InventoryTags
+                .AsNoTracking()
+                .Where(inventoryTag => tagIds.Contains(inventoryTag.TagId))
+                .Select(inventoryTag => inventoryTag.Inventory!)
+                .OrderByDescending(inventory => inventory.UpdatedAt)
+                .Take(limit)
+                .ToListAsync();
+
+            inventories = inventories
+                .Concat(taggedInventories)
+                .GroupBy(inventory => inventory.Id)
+                .Select(group => group.First())
+                .OrderByDescending(inventory => inventory.UpdatedAt)
+                .Take(limit)
+                .ToList();
+        }
+
         return new SearchResults(inventories, items, tags);
     }
 

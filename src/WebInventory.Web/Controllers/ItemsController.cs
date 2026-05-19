@@ -1,7 +1,10 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using WebInventory.Application.Interfaces;
 using WebInventory.Domain.Entities;
+using WebInventory.Domain.Enums;
+using WebInventory.Infrastructure.Data;
 using WebInventory.Web.Models;
 
 namespace WebInventory.Web.Controllers;
@@ -13,13 +16,20 @@ public class ItemsController : Controller
     private readonly IInventoryService _inventoryService;
     private readonly IAccessControlService _accessControlService;
     private readonly ICustomIdGenerator _customIdGenerator;
+    private readonly ApplicationDbContext _dbContext;
 
-    public ItemsController(IItemService itemService, IInventoryService inventoryService, IAccessControlService accessControlService, ICustomIdGenerator customIdGenerator)
+    public ItemsController(
+        IItemService itemService,
+        IInventoryService inventoryService,
+        IAccessControlService accessControlService,
+        ICustomIdGenerator customIdGenerator,
+        ApplicationDbContext dbContext)
     {
         _itemService = itemService;
         _inventoryService = inventoryService;
         _accessControlService = accessControlService;
         _customIdGenerator = customIdGenerator;
+        _dbContext = dbContext;
     }
 
     [AllowAnonymous]
@@ -33,6 +43,7 @@ public class ItemsController : Controller
 
         ViewBag.Inventory = inventory;
         ViewBag.CanWrite = await CanWriteAsync(inventory);
+        ViewBag.Fields = await GetFieldsAsync(inventoryId);
         var items = await _itemService.GetByInventoryAsync(inventoryId);
         return View(items);
     }
@@ -52,6 +63,7 @@ public class ItemsController : Controller
 
         ViewBag.Inventory = inventory;
         ViewBag.CanWrite = true;
+        ViewBag.Fields = await GetFieldsAsync(inventoryId);
         return View(new ItemFormViewModel { InventoryId = inventoryId });
     }
 
@@ -74,6 +86,7 @@ public class ItemsController : Controller
         {
             ViewBag.Inventory = inventory;
             ViewBag.CanWrite = true;
+            ViewBag.Fields = await GetFieldsAsync(model.InventoryId);
             return View(model);
         }
 
@@ -130,6 +143,7 @@ public class ItemsController : Controller
 
         ViewBag.Inventory = inventory;
         ViewBag.CanWrite = true;
+        ViewBag.Fields = await GetFieldsAsync(item.InventoryId);
         return View(new ItemFormViewModel
         {
             Id = item.Id,
@@ -184,6 +198,7 @@ public class ItemsController : Controller
         {
             ViewBag.Inventory = inventory;
             ViewBag.CanWrite = true;
+            ViewBag.Fields = await GetFieldsAsync(model.InventoryId);
             return View(model);
         }
 
@@ -192,6 +207,7 @@ public class ItemsController : Controller
             ModelState.AddModelError(string.Empty, "The item version is missing. Please retry.");
             ViewBag.Inventory = inventory;
             ViewBag.CanWrite = true;
+            ViewBag.Fields = await GetFieldsAsync(model.InventoryId);
             return View(model);
         }
 
@@ -200,6 +216,7 @@ public class ItemsController : Controller
             ModelState.AddModelError(nameof(model.CustomId), "Custom ID is required.");
             ViewBag.Inventory = inventory;
             ViewBag.CanWrite = true;
+            ViewBag.Fields = await GetFieldsAsync(model.InventoryId);
             return View(model);
         }
 
@@ -226,6 +243,7 @@ public class ItemsController : Controller
             ModelState.AddModelError(string.Empty, "The item was updated by another user. Please retry.");
             ViewBag.Inventory = inventory;
             ViewBag.CanWrite = true;
+            ViewBag.Fields = await GetFieldsAsync(model.InventoryId);
             return View(model);
         }
 
@@ -284,5 +302,29 @@ public class ItemsController : Controller
     private async Task<bool> CanWriteAsync(Inventory inventory)
     {
         return await _accessControlService.CanWriteAsync(inventory, User);
+    }
+
+    private async Task<IReadOnlyList<InventoryField>> GetFieldsAsync(Guid inventoryId)
+    {
+        return await _dbContext.InventoryFields
+            .AsNoTracking()
+            .Where(field => field.InventoryId == inventoryId)
+            .OrderBy(field => field.DisplayOrder)
+            .ThenBy(field => field.FieldType)
+            .ThenBy(field => field.SlotNumber)
+            .ToListAsync();
+    }
+
+    public static string GetItemPropertyName(InventoryField field)
+    {
+        return field.FieldType switch
+        {
+            InventoryFieldType.Text => $"Text{field.SlotNumber}",
+            InventoryFieldType.Multiline => $"Multiline{field.SlotNumber}",
+            InventoryFieldType.Number => $"Num{field.SlotNumber}",
+            InventoryFieldType.Document => $"Doc{field.SlotNumber}",
+            InventoryFieldType.Boolean => $"Bool{field.SlotNumber}",
+            _ => throw new ArgumentOutOfRangeException(nameof(field), field.FieldType, "Unsupported field type.")
+        };
     }
 }

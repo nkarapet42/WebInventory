@@ -1,20 +1,42 @@
 @using System.Text.Json
+@using WebInventory.Domain.Entities
+@using WebInventory.Domain.Enums
 @model IReadOnlyList<WebInventory.Domain.Entities.Item>
 @{
-    var inventory = (WebInventory.Domain.Entities.Inventory)ViewBag.Inventory;
+    var inventory = (Inventory)ViewBag.Inventory;
+    var fields = ((IReadOnlyList<InventoryField>)ViewBag.Fields).Where(field => field.ShowInTable).ToList();
     var canWrite = ViewBag.CanWrite is true;
     var rowData = Model.Select(item => new
     {
         id = item.Id,
         customId = item.CustomId,
         text1 = item.Text1,
+        text2 = item.Text2,
+        text3 = item.Text3,
+        multiline1 = item.Multiline1,
+        multiline2 = item.Multiline2,
+        multiline3 = item.Multiline3,
         num1 = item.Num1,
+        num2 = item.Num2,
+        num3 = item.Num3,
+        doc1 = item.Doc1,
+        doc2 = item.Doc2,
+        doc3 = item.Doc3,
+        bool1 = item.Bool1,
+        bool2 = item.Bool2,
+        bool3 = item.Bool3,
         updatedAt = item.UpdatedAt.ToString("u")
     });
     var rowDataJson = JsonSerializer.Serialize(rowData, new JsonSerializerOptions
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase
     });
+    var columnDataJson = JsonSerializer.Serialize(fields.Select(field => new
+    {
+        field = ToClientFieldName(field),
+        headerName = field.Title,
+        filter = field.FieldType == InventoryFieldType.Number ? "agNumberColumnFilter" : "agTextColumnFilter"
+    }));
 }
 
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ag-grid-community/styles/ag-grid.css" />
@@ -39,12 +61,18 @@
 <script src="https://cdn.jsdelivr.net/npm/ag-grid-community/dist/ag-grid-community.min.js"></script>
 <script>
     const rowData = @Html.Raw(rowDataJson);
+    const fieldColumns = @Html.Raw(columnDataJson);
     const canWrite = @canWrite.ToString().ToLowerInvariant();
     const gridOptions = {
         columnDefs: [
             { field: 'customId', headerName: 'Custom ID', sortable: true, filter: true },
-            { field: 'text1', headerName: 'Text1', sortable: true, filter: true },
-            { field: 'num1', headerName: 'Num1', sortable: true, filter: true },
+            ...fieldColumns.map(column => ({
+                field: column.field,
+                headerName: column.headerName,
+                sortable: true,
+                filter: column.filter,
+                valueFormatter: params => typeof params.value === 'boolean' ? (params.value ? 'Yes' : 'No') : params.value
+            })),
             { field: 'updatedAt', headerName: 'Updated', sortable: true, filter: true }
         ],
         rowData,
@@ -95,3 +123,20 @@
         });
     }
 </script>
+
+@functions {
+    private static string ToClientFieldName(InventoryField field)
+    {
+        var propertyName = field.FieldType switch
+        {
+            InventoryFieldType.Text => $"text{field.SlotNumber}",
+            InventoryFieldType.Multiline => $"multiline{field.SlotNumber}",
+            InventoryFieldType.Number => $"num{field.SlotNumber}",
+            InventoryFieldType.Document => $"doc{field.SlotNumber}",
+            InventoryFieldType.Boolean => $"bool{field.SlotNumber}",
+            _ => throw new ArgumentOutOfRangeException(nameof(field), field.FieldType, "Unsupported field type.")
+        };
+
+        return propertyName;
+    }
+}

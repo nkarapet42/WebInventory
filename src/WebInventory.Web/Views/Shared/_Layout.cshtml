@@ -47,6 +47,20 @@
                             <a class="nav-link" asp-area="" asp-controller="Home" asp-action="Privacy">Privacy</a>
                         </li>
                     </ul>
+                    <form class="d-flex me-2 header-search"
+                          asp-area=""
+                          asp-controller="Search"
+                          asp-action="Index"
+                          method="get"
+                          role="search">
+                        <input class="form-control form-control-sm"
+                               type="search"
+                               name="q"
+                               value="@(Context.Request.Query["q"].ToString())"
+                               placeholder="Search"
+                               aria-label="Search inventories, items, tags" />
+                        <button class="btn btn-outline-primary btn-sm ms-1" type="submit">Search</button>
+                    </form>
                     <button id="themeToggle" class="btn btn-outline-secondary btn-sm me-2" type="button" aria-label="Toggle theme">Dark</button>
                     <partial name="_LoginPartial" />
                 </div>

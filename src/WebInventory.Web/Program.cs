@@ -1,6 +1,9 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Localization;
+using Microsoft.Extensions.Options;
+using System.Globalization;
 using WebInventory.Application.Interfaces;
 using WebInventory.Domain.Constants;
 using WebInventory.Domain.Identity;
@@ -11,6 +14,11 @@ using WebInventory.Web.Hubs;
 using WebInventory.Web.Services;
 
 var builder = WebApplication.CreateBuilder(args);
+var supportedCultures = new[]
+{
+    new CultureInfo("en"),
+    new CultureInfo("es")
+};
 
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
@@ -40,7 +48,20 @@ builder.Services.AddSingleton<IIdPartGenerator, Random9DigitGenerator>();
 builder.Services.AddSingleton<IIdPartGenerator, GuidGenerator>();
 builder.Services.AddSingleton<IIdPartGenerator, DateTimeGenerator>();
 builder.Services.AddSingleton<IIdPartGenerator, SequenceGenerator>();
-builder.Services.AddControllersWithViews();
+builder.Services.AddLocalization(options => options.ResourcesPath = "Resources");
+builder.Services.Configure<RequestLocalizationOptions>(options =>
+{
+    options.DefaultRequestCulture = new RequestCulture("en");
+    options.SupportedCultures = supportedCultures;
+    options.SupportedUICultures = supportedCultures;
+    options.RequestCultureProviders =
+    [
+        new CookieRequestCultureProvider(),
+        new AcceptLanguageHeaderRequestCultureProvider()
+    ];
+});
+builder.Services.AddControllersWithViews()
+    .AddViewLocalization();
 builder.Services.AddRazorPages();
 builder.Services.AddSignalR();
 
@@ -59,8 +80,9 @@ if (!app.Environment.IsDevelopment())
     app.UseHsts();
     app.UseHttpsRedirection();
 }
-app.UseRouting();
+app.UseRequestLocalization(app.Services.GetRequiredService<IOptions<RequestLocalizationOptions>>().Value);
 
+app.UseRouting();
 app.UseAuthentication();
 app.Use(async (context, next) =>
 {

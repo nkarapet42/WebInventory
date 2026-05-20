@@ -6,27 +6,27 @@
 }
 
 <div class="d-flex justify-content-between align-items-center mb-3">
-    <h1>Inventory Management</h1>
+    <h1>@T["Inventory Management"]</h1>
     @if (User.Identity?.IsAuthenticated == true)
     {
-        <a class="btn btn-primary" asp-controller="Inventories" asp-action="Create">New Inventory</a>
+        <a class="btn btn-primary" asp-controller="Inventories" asp-action="Create">@T["New Inventory"]</a>
     }
 </div>
 
 <section class="mb-5">
     <div class="d-flex justify-content-between align-items-center mb-2">
-        <h2 class="h4 mb-0">Latest Inventories</h2>
-        <a asp-controller="Inventories" asp-action="Index">View all</a>
+        <h2 class="h4 mb-0">@T["Latest Inventories"]</h2>
+        <a asp-controller="Inventories" asp-action="Index">@T["View all"]</a>
     </div>
     <div class="table-responsive">
         <table class="table table-hover align-middle">
             <thead>
             <tr>
-                <th>Inventory</th>
-                <th>Category</th>
-                <th>Creator</th>
-                <th class="text-end">Items</th>
-                <th>Updated</th>
+                <th>@T["Inventory"]</th>
+                <th>@T["Category"]</th>
+                <th>@T["Creator"]</th>
+                <th class="text-end">@T["Items"]</th>
+                <th>@T["Updated"]</th>
             </tr>
             </thead>
             <tbody>
@@ -40,8 +40,8 @@
                             <div class="text-muted small markdown-preview" style="max-width: 38rem;">@Html.Raw(MarkdownService.ToHtml(inventory.DescriptionMarkdown))</div>
                         }
                     </td>
-                    <td>@(inventory.CategoryName ?? "Other")</td>
-                    <td>@(inventory.CreatorName ?? "Unknown")</td>
+                    <td>@(inventory.CategoryName ?? T["Other"].Value)</td>
+                    <td>@(inventory.CreatorName ?? T["Unknown"].Value)</td>
                     <td class="text-end">@inventory.ItemCount</td>
                     <td>@inventory.UpdatedAt.ToString("g")</td>
                 </tr>
@@ -49,7 +49,7 @@
             @if (!Model.LatestInventories.Any())
             {
                 <tr>
-                    <td colspan="5" class="text-muted">No inventories yet.</td>
+                    <td colspan="5" class="text-muted">@T["No inventories yet."]</td>
                 </tr>
             }
             </tbody>
@@ -58,15 +58,15 @@
 </section>
 
 <section class="mb-5">
-    <h2 class="h4 mb-2">Top 5 Popular Inventories</h2>
+    <h2 class="h4 mb-2">@T["Top 5 Popular Inventories"]</h2>
     <div class="table-responsive">
         <table class="table table-hover align-middle">
             <thead>
             <tr>
-                <th>Inventory</th>
-                <th>Creator</th>
-                <th class="text-end">Items</th>
-                <th>Updated</th>
+                <th>@T["Inventory"]</th>
+                <th>@T["Creator"]</th>
+                <th class="text-end">@T["Items"]</th>
+                <th>@T["Updated"]</th>
             </tr>
             </thead>
             <tbody>
@@ -76,7 +76,7 @@
                     <td>
                         <a asp-controller="Inventories" asp-action="Details" asp-route-id="@inventory.Id">@inventory.Title</a>
                     </td>
-                    <td>@(inventory.CreatorName ?? "Unknown")</td>
+                    <td>@(inventory.CreatorName ?? T["Unknown"].Value)</td>
                     <td class="text-end">@inventory.ItemCount</td>
                     <td>@inventory.UpdatedAt.ToString("g")</td>
                 </tr>
@@ -84,7 +84,7 @@
             @if (!Model.PopularInventories.Any())
             {
                 <tr>
-                    <td colspan="4" class="text-muted">No inventory activity yet.</td>
+                    <td colspan="4" class="text-muted">@T["No inventory activity yet."]</td>
                 </tr>
             }
             </tbody>
@@ -93,7 +93,7 @@
 </section>
 
 <section>
-    <h2 class="h4 mb-2">Tags</h2>
+    <h2 class="h4 mb-2">@T["Tags"]</h2>
     @if (Model.TagCloud.Any())
     {
         <div class="d-flex flex-wrap gap-2">
@@ -111,6 +111,6 @@
     }
     else
     {
-        <p class="text-muted">No tags yet.</p>
+        <p class="text-muted">@T["No tags yet."]</p>
     }
 </section>

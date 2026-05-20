@@ -1,18 +1,18 @@
 @model WebInventory.Web.Models.SearchViewModel
 @inject WebInventory.Web.Services.MarkdownService MarkdownService
 
-<h1>Search</h1>
+<h1>@T["Search"]</h1>
 
 <form method="get" class="mb-4">
     <div class="input-group">
-        <input class="form-control" name="q" value="@Model.Query" placeholder="Search inventories, items, tags" />
-        <button class="btn btn-primary" type="submit">Search</button>
+        <input class="form-control" name="q" value="@Model.Query" placeholder="@T["Search inventories, items, tags"]" />
+        <button class="btn btn-primary" type="submit">@T["Search"]</button>
     </div>
 </form>
 
 @if (!string.IsNullOrWhiteSpace(Model.Query))
 {
-    <h2>Inventories</h2>
+    <h2>@T["Inventories"]</h2>
     <ul class="list-group mb-4">
         @foreach (var inventory in Model.Inventories)
         {
@@ -26,11 +26,11 @@
         }
         @if (!Model.Inventories.Any())
         {
-            <li class="list-group-item">No inventories found.</li>
+            <li class="list-group-item">@T["No inventories found."]</li>
         }
     </ul>
 
-    <h2>Items</h2>
+    <h2>@T["Items"]</h2>
     <ul class="list-group mb-4">
         @foreach (var item in Model.Items)
         {
@@ -40,11 +40,11 @@
         }
         @if (!Model.Items.Any())
         {
-            <li class="list-group-item">No items found.</li>
+            <li class="list-group-item">@T["No items found."]</li>
         }
     </ul>
 
-    <h2>Tags</h2>
+    <h2>@T["Tags"]</h2>
     <ul class="list-group">
         @foreach (var tag in Model.Tags)
         {
@@ -52,7 +52,7 @@
         }
         @if (!Model.Tags.Any())
         {
-            <li class="list-group-item">No tags found.</li>
+            <li class="list-group-item">@T["No tags found."]</li>
         }
     </ul>
 }

@@ -1,6 +1,11 @@
 ﻿<!DOCTYPE html>
 @using WebInventory.Domain.Constants
-<html lang="en" data-bs-theme="light">
+@using System.Globalization
+@{
+    var currentCulture = CultureInfo.CurrentUICulture.TwoLetterISOLanguageName;
+    var returnUrl = Context.Request.PathBase + Context.Request.Path + Context.Request.QueryString;
+}
+<html lang="@currentCulture" data-bs-theme="light">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -29,22 +34,22 @@
                 <div class="navbar-collapse collapse d-sm-inline-flex justify-content-between">
                     <ul class="navbar-nav flex-grow-1">
                         <li class="nav-item">
-                            <a class="nav-link" asp-area="" asp-controller="Home" asp-action="Index">Home</a>
+                            <a class="nav-link" asp-area="" asp-controller="Home" asp-action="Index">@T["Home"]</a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link" asp-area="" asp-controller="Inventories" asp-action="Index">Inventories</a>
+                            <a class="nav-link" asp-area="" asp-controller="Inventories" asp-action="Index">@T["Inventories"]</a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link" asp-area="" asp-controller="Search" asp-action="Index">Search</a>
+                            <a class="nav-link" asp-area="" asp-controller="Search" asp-action="Index">@T["Search"]</a>
                         </li>
                         @if (User.IsInRole(RoleNames.Admin))
                         {
                             <li class="nav-item">
-                                <a class="nav-link" asp-area="" asp-controller="Admin" asp-action="Index">Admin</a>
+                                <a class="nav-link" asp-area="" asp-controller="Admin" asp-action="Index">@T["Admin"]</a>
                             </li>
                         }
                         <li class="nav-item">
-                            <a class="nav-link" asp-area="" asp-controller="Home" asp-action="Privacy">Privacy</a>
+                            <a class="nav-link" asp-area="" asp-controller="Home" asp-action="Privacy">@T["Privacy"]</a>
                         </li>
                     </ul>
                     <form class="d-flex me-2 header-search"
@@ -57,9 +62,22 @@
                                type="search"
                                name="q"
                                value="@(Context.Request.Query["q"].ToString())"
-                               placeholder="Search"
-                               aria-label="Search inventories, items, tags" />
-                        <button class="btn btn-outline-primary btn-sm ms-1" type="submit">Search</button>
+                               placeholder="@T["Search"]"
+                               aria-label="@T["Search inventories, items, tags"]" />
+                        <button class="btn btn-outline-primary btn-sm ms-1" type="submit">@T["Search"]</button>
+                    </form>
+                    <form class="me-2"
+                          asp-controller="Localization"
+                          asp-action="SetLanguage"
+                          method="post">
+                        <input type="hidden" name="returnUrl" value="@returnUrl" />
+                        <select class="form-select form-select-sm language-select"
+                                name="culture"
+                                aria-label="@T["Language"]"
+                                onchange="this.form.submit()">
+                            <option value="en" selected="@(currentCulture == "en")">English</option>
+                            <option value="es" selected="@(currentCulture == "es")">Espanol</option>
+                        </select>
                     </form>
                     <button id="themeToggle" class="btn btn-outline-secondary btn-sm me-2" type="button" aria-label="Toggle theme">Dark</button>
                     <partial name="_LoginPartial" />
@@ -75,7 +93,7 @@
 
     <footer class="border-top footer text-muted">
         <div class="container">
-            &copy; 2026 - WebInventory.Web - <a asp-area="" asp-controller="Home" asp-action="Privacy">Privacy</a>
+            &copy; 2026 - WebInventory.Web - <a asp-area="" asp-controller="Home" asp-action="Privacy">@T["Privacy"]</a>
         </div>
     </footer>
     <script src="~/lib/jquery/dist/jquery.min.js"></script>

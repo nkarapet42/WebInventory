@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="Admin" xml:space="preserve">
+    <value>Admin</value>
+  </data>
+  <data name="Category" xml:space="preserve">
+    <value>Categoria</value>
+  </data>
+  <data name="Creator" xml:space="preserve">
+    <value>Creador</value>
+  </data>
+  <data name="Hello" xml:space="preserve">
+    <value>Hola</value>
+  </data>
+  <data name="Home" xml:space="preserve">
+    <value>Inicio</value>
+  </data>
+  <data name="Inventory" xml:space="preserve">
+    <value>Inventario</value>
+  </data>
+  <data name="Inventory Management" xml:space="preserve">
+    <value>Gestion de inventario</value>
+  </data>
+  <data name="Inventories" xml:space="preserve">
+    <value>Inventarios</value>
+  </data>
+  <data name="Items" xml:space="preserve">
+    <value>Elementos</value>
+  </data>
+  <data name="Language" xml:space="preserve">
+    <value>Idioma</value>
+  </data>
+  <data name="Latest Inventories" xml:space="preserve">
+    <value>Inventarios recientes</value>
+  </data>
+  <data name="Login" xml:space="preserve">
+    <value>Iniciar sesion</value>
+  </data>
+  <data name="Logout" xml:space="preserve">
+    <value>Salir</value>
+  </data>
+  <data name="My page" xml:space="preserve">
+    <value>Mi pagina</value>
+  </data>
+  <data name="New Inventory" xml:space="preserve">
+    <value>Nuevo inventario</value>
+  </data>
+  <data name="No inventories found." xml:space="preserve">
+    <value>No se encontraron inventarios.</value>
+  </data>
+  <data name="No inventories yet." xml:space="preserve">
+    <value>Aun no hay inventarios.</value>
+  </data>
+  <data name="No inventory activity yet." xml:space="preserve">
+    <value>Aun no hay actividad de inventario.</value>
+  </data>
+  <data name="No items found." xml:space="preserve">
+    <value>No se encontraron elementos.</value>
+  </data>
+  <data name="No tags found." xml:space="preserve">
+    <value>No se encontraron etiquetas.</value>
+  </data>
+  <data name="No tags yet." xml:space="preserve">
+    <value>Aun no hay etiquetas.</value>
+  </data>
+  <data name="Other" xml:space="preserve">
+    <value>Otro</value>
+  </data>
+  <data name="Privacy" xml:space="preserve">
+    <value>Privacidad</value>
+  </data>
+  <data name="Register" xml:space="preserve">
+    <value>Registrarse</value>
+  </data>
+  <data name="Search" xml:space="preserve">
+    <value>Buscar</value>
+  </data>
+  <data name="Search inventories, items, tags" xml:space="preserve">
+    <value>Buscar inventarios, elementos, etiquetas</value>
+  </data>
+  <data name="Tags" xml:space="preserve">
+    <value>Etiquetas</value>
+  </data>
+  <data name="Top 5 Popular Inventories" xml:space="preserve">
+    <value>Top 5 inventarios populares</value>
+  </data>
+  <data name="Unknown" xml:space="preserve">
+    <value>Desconocido</value>
+  </data>
+  <data name="Updated" xml:space="preserve">
+    <value>Actualizado</value>
+  </data>
+  <data name="View all" xml:space="preserve">
+    <value>Ver todo</value>
+  </data>
+</root>

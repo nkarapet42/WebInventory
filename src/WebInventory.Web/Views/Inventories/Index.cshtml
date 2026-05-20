@@ -1,40 +1,99 @@
+@using System.Text.Json
 @model IReadOnlyList<WebInventory.Domain.Entities.Inventory>
 @inject WebInventory.Web.Services.MarkdownService MarkdownService
 
+@{
+    ViewData["Title"] = "Inventories";
+    var rowData = Model.Select(inventory => new
+    {
+        id = inventory.Id,
+        title = inventory.Title,
+        descriptionHtml = MarkdownService.ToHtml(inventory.DescriptionMarkdown),
+        category = inventory.Category?.Name ?? "Uncategorized",
+        accessMode = inventory.AccessMode.ToString(),
+        updatedAt = inventory.UpdatedAt.ToString("u")
+    });
+    var rowDataJson = JsonSerializer.Serialize(rowData, new JsonSerializerOptions
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+    });
+}
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ag-grid-community/styles/ag-grid.css" />
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ag-grid-community/styles/ag-theme-alpine.css" />
+
 <div class="d-flex justify-content-between align-items-center mb-3">
     <h1>Inventories</h1>
-    @if (User.Identity?.IsAuthenticated == true)
-    {
-        <a class="btn btn-primary" asp-action="Create">New Inventory</a>
-    }
+    <div class="d-flex gap-2">
+        <button id="openInventoryBtn" class="btn btn-outline-primary" type="button" disabled>Open</button>
+        @if (User.Identity?.IsAuthenticated == true)
+        {
+            <a class="btn btn-primary" asp-action="Create">New Inventory</a>
+        }
+    </div>
 </div>
 
-<table class="table table-striped">
-    <thead>
-        <tr>
-            <th>Title</th>
-            <th>Category</th>
-            <th>Updated</th>
-            <th></th>
-        </tr>
-    </thead>
-    <tbody>
-    @foreach (var inventory in Model)
-    {
-        <tr>
-            <td>
-                <a asp-action="Details" asp-route-id="@inventory.Id">@inventory.Title</a>
-                @if (!string.IsNullOrWhiteSpace(inventory.DescriptionMarkdown))
-                {
-                    <div class="text-muted small markdown-preview">@Html.Raw(MarkdownService.ToHtml(inventory.DescriptionMarkdown))</div>
+<div id="inventoriesGrid" class="ag-theme-alpine" style="height: 560px; width: 100%;"></div>
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/ag-grid-community/dist/ag-grid-community.min.js"></script>
+    <script>
+        (() => {
+            const rowData = @Html.Raw(rowDataJson);
+            const openButton = document.getElementById('openInventoryBtn');
+
+            const gridApi = agGrid.createGrid(document.getElementById('inventoriesGrid'), {
+                columnDefs: [
+                    {
+                        field: 'title',
+                        headerName: 'Inventory',
+                        sortable: true,
+                        filter: true,
+                        flex: 2,
+                        cellRenderer: params => {
+                            const description = params.data.descriptionHtml
+                                ? `<div class="text-muted small markdown-preview">${params.data.descriptionHtml}</div>`
+                                : '';
+                            return `<div><span>${escapeHtml(params.value)}</span>${description}</div>`;
+                        }
+                    },
+                    { field: 'category', headerName: 'Category', sortable: true, filter: true },
+                    { field: 'accessMode', headerName: 'Access', sortable: true, filter: true },
+                    { field: 'updatedAt', headerName: 'Updated', sortable: true, filter: true }
+                ],
+                rowData,
+                rowSelection: 'single',
+                getRowId: params => params.data.id,
+                defaultColDef: {
+                    resizable: true
+                },
+                onSelectionChanged: event => {
+                    openButton.disabled = event.api.getSelectedRows().length !== 1;
+                },
+                onRowDoubleClicked: event => {
+                    openInventory(event.data.id);
                 }
-            </td>
-            <td>@inventory.Category?.Name</td>
-            <td>@inventory.UpdatedAt.ToString("u")</td>
-            <td>
-                <a class="btn btn-sm btn-outline-secondary" asp-action="Details" asp-route-id="@inventory.Id">View</a>
-            </td>
-        </tr>
-    }
-    </tbody>
-</table>
+            });
+
+            openButton.addEventListener('click', () => {
+                const selected = gridApi.getSelectedRows();
+                if (selected.length === 1) {
+                    openInventory(selected[0].id);
+                }
+            });
+
+            function openInventory(id) {
+                window.location.href = `/Inventories/Details/${id}`;
+            }
+
+            function escapeHtml(value) {
+                return (value || '')
+                    .replaceAll('&', '&amp;')
+                    .replaceAll('<', '&lt;')
+                    .replaceAll('>', '&gt;')
+                    .replaceAll('"', '&quot;')
+                    .replaceAll("'", '&#039;');
+            }
+        })();
+    </script>
+}

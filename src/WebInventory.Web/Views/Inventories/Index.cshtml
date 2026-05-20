@@ -1,4 +1,5 @@
 @model IReadOnlyList<WebInventory.Domain.Entities.Inventory>
+@inject WebInventory.Web.Services.MarkdownService MarkdownService
 
 <div class="d-flex justify-content-between align-items-center mb-3">
     <h1>Inventories</h1>
@@ -21,7 +22,13 @@
     @foreach (var inventory in Model)
     {
         <tr>
-            <td>@inventory.Title</td>
+            <td>
+                <a asp-action="Details" asp-route-id="@inventory.Id">@inventory.Title</a>
+                @if (!string.IsNullOrWhiteSpace(inventory.DescriptionMarkdown))
+                {
+                    <div class="text-muted small markdown-preview">@Html.Raw(MarkdownService.ToHtml(inventory.DescriptionMarkdown))</div>
+                }
+            </td>
             <td>@inventory.Category?.Name</td>
             <td>@inventory.UpdatedAt.ToString("u")</td>
             <td>

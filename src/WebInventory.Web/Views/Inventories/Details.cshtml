@@ -1,4 +1,5 @@
 @model InventoryDetailsViewModel
+@inject WebInventory.Web.Services.MarkdownService MarkdownService
 
 @{
     var inventory = Model.Inventory;
@@ -119,7 +120,16 @@
             <dd class="col-sm-9">@inventory.Title</dd>
 
             <dt class="col-sm-3">Description</dt>
-            <dd class="col-sm-9">@inventory.DescriptionMarkdown</dd>
+            <dd class="col-sm-9">
+                @if (string.IsNullOrWhiteSpace(inventory.DescriptionMarkdown))
+                {
+                    <span class="text-muted">No description.</span>
+                }
+                else
+                {
+                    <div class="markdown-content">@Html.Raw(MarkdownService.ToHtml(inventory.DescriptionMarkdown))</div>
+                }
+            </dd>
 
             <dt class="col-sm-3">Category</dt>
             <dd class="col-sm-9">@(inventory.Category?.Name ?? "Uncategorized")</dd>

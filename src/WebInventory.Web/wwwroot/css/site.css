@@ -78,3 +78,13 @@ body {
 .discussion-body > :last-child {
   margin-bottom: 0;
 }
+
+.markdown-content > :last-child,
+.markdown-preview > :last-child {
+  margin-bottom: 0;
+}
+
+.markdown-preview {
+  max-height: 3.25rem;
+  overflow: hidden;
+}

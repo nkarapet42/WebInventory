@@ -1,4 +1,5 @@
 ﻿@model HomeIndexViewModel
+@inject WebInventory.Web.Services.MarkdownService MarkdownService
 
 @{
     ViewData["Title"] = "Home";
@@ -36,7 +37,7 @@
                         <a asp-controller="Inventories" asp-action="Details" asp-route-id="@inventory.Id">@inventory.Title</a>
                         @if (!string.IsNullOrWhiteSpace(inventory.DescriptionMarkdown))
                         {
-                            <div class="text-muted small text-truncate" style="max-width: 38rem;">@inventory.DescriptionMarkdown</div>
+                            <div class="text-muted small markdown-preview" style="max-width: 38rem;">@Html.Raw(MarkdownService.ToHtml(inventory.DescriptionMarkdown))</div>
                         }
                     </td>
                     <td>@(inventory.CategoryName ?? "Other")</td>

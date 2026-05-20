@@ -8,11 +8,16 @@
     var canWrite = ViewBag.CanWrite is true;
     var likeCounts = (Dictionary<Guid, int>)ViewBag.LikeCounts;
     var likedItemIds = (HashSet<Guid>)ViewBag.LikedItemIds;
+    var creatorNames = (Dictionary<string, string>)ViewBag.CreatorNames;
     var isAuthenticated = User.Identity?.IsAuthenticated == true;
     var rowData = Model.Select(item => new
     {
         id = item.Id,
         customId = item.CustomId,
+        createdBy = item.CreatedByUserId is not null && creatorNames.TryGetValue(item.CreatedByUserId, out var creatorName)
+            ? creatorName
+            : "",
+        createdAt = item.CreatedAt.ToString("u"),
         likeCount = likeCounts.TryGetValue(item.Id, out var likeCount) ? likeCount : 0,
         likedByCurrentUser = likedItemIds.Contains(item.Id),
         text1 = item.Text1,
@@ -79,6 +84,8 @@
     const gridOptions = {
         columnDefs: [
             { field: 'customId', headerName: 'Custom ID', sortable: true, filter: true },
+            { field: 'createdBy', headerName: 'Created By', sortable: true, filter: true },
+            { field: 'createdAt', headerName: 'Created', sortable: true, filter: true },
             { field: 'likeCount', headerName: 'Likes', sortable: true, filter: 'agNumberColumnFilter', width: 110 },
             ...fieldColumns.map(column => ({
                 field: column.field,

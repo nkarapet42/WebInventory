@@ -395,6 +395,9 @@ namespace WebInventory.Infrastructure.Data.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasDefaultValueSql("now()");
 
+                    b.Property<string>("CreatedByUserId")
+                        .HasColumnType("text");
+
                     b.Property<string>("CustomId")
                         .IsRequired()
                         .HasMaxLength(120)
@@ -463,6 +466,8 @@ namespace WebInventory.Infrastructure.Data.Migrations
 
                     b.HasIndex("InventoryId", "CustomId")
                         .IsUnique();
+
+                    b.HasIndex("CreatedByUserId");
 
                     b.ToTable("Items");
                 });
@@ -797,11 +802,18 @@ namespace WebInventory.Infrastructure.Data.Migrations
 
             modelBuilder.Entity("WebInventory.Domain.Entities.Item", b =>
                 {
+                    b.HasOne("WebInventory.Domain.Identity.ApplicationUser", "CreatedByUser")
+                        .WithMany()
+                        .HasForeignKey("CreatedByUserId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.HasOne("WebInventory.Domain.Entities.Inventory", "Inventory")
                         .WithMany("Items")
                         .HasForeignKey("InventoryId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.Navigation("CreatedByUser");
 
                     b.Navigation("Inventory");
                 });

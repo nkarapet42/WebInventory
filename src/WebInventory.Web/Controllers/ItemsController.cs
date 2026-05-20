@@ -51,6 +51,18 @@ public class ItemsController : Controller
         ViewBag.Fields = await GetFieldsAsync(inventoryId);
         var items = await _itemService.GetByInventoryAsync(inventoryId);
         var itemIds = items.Select(item => item.Id).ToArray();
+        var creatorIds = items
+            .Select(item => item.CreatedByUserId)
+            .Where(userId => !string.IsNullOrWhiteSpace(userId))
+            .Distinct()
+            .ToArray();
+        ViewBag.CreatorNames = creatorIds.Length == 0
+            ? new Dictionary<string, string>()
+            : await _dbContext.Users
+                .AsNoTracking()
+                .Where(user => creatorIds.Contains(user.Id))
+                .Select(user => new { user.Id, Name = user.UserName ?? user.Email ?? "User" })
+                .ToDictionaryAsync(user => user.Id, user => user.Name);
         ViewBag.LikeCounts = await _dbContext.ItemLikes
             .AsNoTracking()
             .Where(like => itemIds.Contains(like.ItemId))
@@ -116,11 +128,13 @@ public class ItemsController : Controller
         var customId = string.IsNullOrWhiteSpace(model.CustomId)
             ? await _customIdGenerator.GenerateAsync(inventory)
             : model.CustomId!.Trim();
+        var userId = _userManager.GetUserId(User);
 
         var item = new Item
         {
             Id = Guid.NewGuid(),
             InventoryId = model.InventoryId,
+            CreatedByUserId = userId,
             CustomId = customId,
             Text1 = model.Text1,
             Text2 = model.Text2,

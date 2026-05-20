@@ -113,9 +113,14 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
             entity.Property(e => e.CreatedAt).HasDefaultValueSql("now()");
             entity.Property(e => e.UpdatedAt).HasDefaultValueSql("now()");
             entity.HasIndex(e => new { e.InventoryId, e.CustomId }).IsUnique();
+            entity.HasIndex(e => e.CreatedByUserId);
             entity.HasOne(e => e.Inventory)
                 .WithMany(i => i.Items)
                 .HasForeignKey(e => e.InventoryId);
+            entity.HasOne(e => e.CreatedByUser)
+                .WithMany()
+                .HasForeignKey(e => e.CreatedByUserId)
+                .OnDelete(DeleteBehavior.SetNull);
             entity.Property<NpgsqlTsVector>("SearchVector")
                 .HasColumnType("tsvector")
                 .HasComputedColumnSql("to_tsvector('simple', coalesce(\"CustomId\", '') || ' ' || coalesce(\"Text1\", '') || ' ' || coalesce(\"Text2\", '') || ' ' || coalesce(\"Text3\", ''))", stored: true);

@@ -19,6 +19,9 @@ public class InventoryFormViewModel
     [StringLength(500)]
     public string? ImageUrl { get; set; }
 
+    [StringLength(1000)]
+    public string? Tags { get; set; }
+
     public InventoryAccessMode AccessMode { get; set; }
 
     public uint? RowVersion { get; set; }

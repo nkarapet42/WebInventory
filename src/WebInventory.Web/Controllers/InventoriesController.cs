@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
+using System.Text.Json;
 using WebInventory.Application.Interfaces;
 using WebInventory.Application.Constants;
 using WebInventory.Domain.Entities;
@@ -118,6 +119,26 @@ public class InventoriesController : Controller
         return View(new InventoryFormViewModel { AccessMode = InventoryAccessMode.PublicWrite });
     }
 
+    [AllowAnonymous]
+    public async Task<IActionResult> TagSuggestions(string? q)
+    {
+        var query = (q ?? string.Empty).Trim().ToUpperInvariant();
+        if (query.Length == 0)
+        {
+            return Json(Array.Empty<string>());
+        }
+
+        var tags = await _dbContext.Tags
+            .AsNoTracking()
+            .Where(tag => tag.NormalizedName.StartsWith(query))
+            .OrderBy(tag => tag.Name)
+            .Select(tag => tag.Name)
+            .Take(10)
+            .ToListAsync();
+
+        return Json(tags);
+    }
+
     [Authorize]
     [HttpPost]
     [ValidateAntiForgeryToken]
@@ -156,6 +177,8 @@ public class InventoriesController : Controller
         });
 
         await _inventoryService.AddAsync(inventory);
+        await UpdateInventoryTagsAsync(inventory.Id, ParseTags(model.Tags));
+        await _dbContext.SaveChangesAsync();
         return RedirectToAction(nameof(Details), new { id = inventory.Id });
     }
 
@@ -180,6 +203,7 @@ public class InventoriesController : Controller
             DescriptionMarkdown = inventory.DescriptionMarkdown,
             CategoryId = inventory.CategoryId,
             ImageUrl = inventory.ImageUrl,
+            Tags = await GetTagStringAsync(inventory.Id),
             AccessMode = inventory.AccessMode,
             RowVersion = inventory.RowVersion
         };
@@ -220,6 +244,7 @@ public class InventoriesController : Controller
         inventory.CategoryId = model.CategoryId;
         inventory.ImageUrl = model.ImageUrl;
         inventory.AccessMode = model.AccessMode;
+        await UpdateInventoryTagsAsync(inventory.Id, ParseTags(model.Tags));
 
         if (model.RowVersion is null)
         {
@@ -279,6 +304,7 @@ public class InventoriesController : Controller
         inventory.CategoryId = model.CategoryId;
         inventory.ImageUrl = model.ImageUrl;
         inventory.AccessMode = model.AccessMode;
+        await UpdateInventoryTagsAsync(inventory.Id, ParseTags(model.Tags));
 
         var updated = await _inventoryService.UpdateAsync(inventory, model.RowVersion.Value);
         if (!updated)
@@ -671,6 +697,123 @@ public class InventoriesController : Controller
     {
         var categories = await _inventoryService.GetCategoriesAsync();
         ViewBag.Categories = new SelectList(categories, "Id", "Name");
+    }
+
+    private async Task<string> GetTagStringAsync(Guid inventoryId)
+    {
+        var tags = await _dbContext.InventoryTags
+            .AsNoTracking()
+            .Where(inventoryTag => inventoryTag.InventoryId == inventoryId)
+            .Join(_dbContext.Tags,
+                inventoryTag => inventoryTag.TagId,
+                tag => tag.Id,
+                (_, tag) => tag.Name)
+            .OrderBy(name => name)
+            .ToListAsync();
+
+        return string.Join(", ", tags);
+    }
+
+    private async Task UpdateInventoryTagsAsync(Guid inventoryId, IReadOnlyCollection<string> tagNames)
+    {
+        var currentLinks = await _dbContext.InventoryTags
+            .Where(inventoryTag => inventoryTag.InventoryId == inventoryId)
+            .ToListAsync();
+
+        if (tagNames.Count == 0)
+        {
+            _dbContext.InventoryTags.RemoveRange(currentLinks);
+            return;
+        }
+
+        var normalizedNames = tagNames
+            .Select(NormalizeTag)
+            .ToHashSet(StringComparer.Ordinal);
+
+        var existingTags = await _dbContext.Tags
+            .Where(tag => normalizedNames.Contains(tag.NormalizedName))
+            .ToListAsync();
+
+        foreach (var tagName in tagNames)
+        {
+            var normalizedName = NormalizeTag(tagName);
+            if (existingTags.Any(tag => tag.NormalizedName == normalizedName))
+            {
+                continue;
+            }
+
+            var tag = new Tag
+            {
+                Id = Guid.NewGuid(),
+                Name = tagName,
+                NormalizedName = normalizedName
+            };
+            existingTags.Add(tag);
+            _dbContext.Tags.Add(tag);
+        }
+
+        var desiredTagIds = existingTags
+            .Where(tag => normalizedNames.Contains(tag.NormalizedName))
+            .Select(tag => tag.Id)
+            .ToHashSet();
+
+        _dbContext.InventoryTags.RemoveRange(currentLinks.Where(link => !desiredTagIds.Contains(link.TagId)));
+
+        var currentTagIds = currentLinks.Select(link => link.TagId).ToHashSet();
+        foreach (var tagId in desiredTagIds.Where(tagId => !currentTagIds.Contains(tagId)))
+        {
+            _dbContext.InventoryTags.Add(new InventoryTag
+            {
+                InventoryId = inventoryId,
+                TagId = tagId
+            });
+        }
+    }
+
+    private static IReadOnlyList<string> ParseTags(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return [];
+        }
+
+        var parsed = TryParseTagifyJson(value) ?? value
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+        return parsed
+            .Select(tag => tag.Trim())
+            .Where(tag => tag.Length > 0)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Take(InventoryLimits.MaxTags)
+            .ToList();
+    }
+
+    private static IEnumerable<string>? TryParseTagifyJson(string value)
+    {
+        try
+        {
+            using var document = JsonDocument.Parse(value);
+            if (document.RootElement.ValueKind != JsonValueKind.Array)
+            {
+                return null;
+            }
+
+            return document.RootElement
+                .EnumerateArray()
+                .Select(element => element.TryGetProperty("value", out var property) ? property.GetString() : null)
+                .Where(tag => !string.IsNullOrWhiteSpace(tag))
+                .Select(tag => tag!)
+                .ToList();
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
+    }
+
+    private static string NormalizeTag(string tag)
+    {
+        return tag.Trim().ToUpperInvariant();
     }
 
     private async Task<InventoryFieldsViewModel> BuildFieldsViewModelAsync(Inventory inventory, InventoryFieldFormViewModel? form = null)

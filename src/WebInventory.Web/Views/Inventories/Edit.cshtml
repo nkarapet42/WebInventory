@@ -1,5 +1,7 @@
 @model WebInventory.Web.Models.InventoryFormViewModel
 
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@@yaireo/tagify/dist/tagify.css" />
+
 <h1>Edit Inventory</h1>
 
 @if (TempData["InventoryEditError"] is string editError)
@@ -33,6 +35,11 @@
         <span asp-validation-for="ImageUrl" class="text-danger"></span>
     </div>
     <div class="mb-3">
+        <label asp-for="Tags" class="form-label"></label>
+        <input asp-for="Tags" class="form-control" autocomplete="off" />
+        <span asp-validation-for="Tags" class="text-danger"></span>
+    </div>
+    <div class="mb-3">
         <label asp-for="AccessMode" class="form-label"></label>
         <select asp-for="AccessMode" class="form-select" asp-items="Html.GetEnumSelectList<WebInventory.Domain.Enums.InventoryAccessMode>()"></select>
     </div>
@@ -43,15 +50,38 @@
 
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
+    <script src="https://cdn.jsdelivr.net/npm/@@yaireo/tagify"></script>
     <script>
         (() => {
             const form = document.getElementById('inventorySettingsForm');
             const status = document.getElementById('autosaveStatus');
             const rowVersion = form.querySelector('[name="RowVersion"]');
             const token = form.querySelector('[name="__RequestVerificationToken"]');
+            const tagInput = document.getElementById('Tags');
+            const tagify = new Tagify(tagInput, {
+                maxTags: 20,
+                dropdown: {
+                    enabled: 1,
+                    maxItems: 10,
+                    closeOnSelect: false
+                }
+            });
             let dirty = false;
             let saving = false;
             let blockedByConflict = false;
+
+            tagify.on('input', async event => {
+                const value = event.detail.value.trim();
+                if (!value) {
+                    return;
+                }
+
+                const response = await fetch(`/Inventories/TagSuggestions?q=${encodeURIComponent(value)}`);
+                if (response.ok) {
+                    tagify.whitelist = await response.json();
+                    tagify.dropdown.show(value);
+                }
+            });
 
             form.addEventListener('input', () => {
                 dirty = true;

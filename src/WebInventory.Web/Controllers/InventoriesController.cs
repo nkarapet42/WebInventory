@@ -364,7 +364,7 @@ public class InventoriesController : Controller
     }
 
     [Authorize]
-    public async Task<IActionResult> Access(Guid id)
+    public async Task<IActionResult> Access(Guid id, string sort = "name")
     {
         var inventory = await _inventoryService.GetByIdForEditAsync(id);
         if (inventory is null)
@@ -377,12 +377,53 @@ public class InventoriesController : Controller
             return Forbid();
         }
 
-        var writers = await _accessControlService.GetWritersAsync(id);
+        var writers = SortUsers(await _accessControlService.GetWritersAsync(id), sort);
         return View(new InventoryAccessViewModel
         {
             Inventory = inventory,
-            Writers = writers
+            Writers = writers,
+            SortMode = NormalizeAccessSort(sort)
         });
+    }
+
+    [Authorize]
+    public async Task<IActionResult> UserSuggestions(Guid id, string? q)
+    {
+        var inventory = await _inventoryService.GetByIdForEditAsync(id);
+        if (inventory is null)
+        {
+            return NotFound();
+        }
+
+        if (!await CanManageAsync(inventory))
+        {
+            return Forbid();
+        }
+
+        var query = (q ?? string.Empty).Trim().ToUpperInvariant();
+        if (query.Length == 0)
+        {
+            return Json(Array.Empty<object>());
+        }
+
+        var users = await _dbContext.Users
+            .AsNoTracking()
+            .Where(user =>
+                user.Id != inventory.OwnerId &&
+                !_dbContext.InventoryAccesses.Any(access => access.InventoryId == id && access.UserId == user.Id) &&
+                ((user.NormalizedUserName != null && user.NormalizedUserName.StartsWith(query)) ||
+                 (user.NormalizedEmail != null && user.NormalizedEmail.StartsWith(query))))
+            .OrderBy(user => user.UserName)
+            .ThenBy(user => user.Email)
+            .Select(user => new
+            {
+                value = user.Email ?? user.UserName,
+                text = (user.UserName ?? "User") + (user.Email == null ? string.Empty : " <" + user.Email + ">")
+            })
+            .Take(10)
+            .ToListAsync();
+
+        return Json(users);
     }
 
     [Authorize]
@@ -404,17 +445,18 @@ public class InventoriesController : Controller
         var result = await _accessControlService.AddWriterAsync(id, model.UserIdentifier ?? string.Empty);
         if (!result.Succeeded)
         {
-            var writers = await _accessControlService.GetWritersAsync(id);
+            var writers = SortUsers(await _accessControlService.GetWritersAsync(id), model.SortMode);
             return View("Access", new InventoryAccessViewModel
             {
                 Inventory = inventory,
                 Writers = writers,
                 UserIdentifier = model.UserIdentifier,
+                SortMode = NormalizeAccessSort(model.SortMode),
                 ErrorMessage = result.ErrorMessage
             });
         }
 
-        return RedirectToAction(nameof(Access), new { id });
+        return RedirectToAction(nameof(Access), new { id, sort = NormalizeAccessSort(model.SortMode) });
     }
 
     [Authorize]
@@ -814,6 +856,18 @@ public class InventoriesController : Controller
     private static string NormalizeTag(string tag)
     {
         return tag.Trim().ToUpperInvariant();
+    }
+
+    private static IReadOnlyList<ApplicationUser> SortUsers(IReadOnlyList<ApplicationUser> users, string? sort)
+    {
+        return NormalizeAccessSort(sort) == "email"
+            ? users.OrderBy(user => user.Email).ThenBy(user => user.UserName).ToList()
+            : users.OrderBy(user => user.UserName).ThenBy(user => user.Email).ToList();
+    }
+
+    private static string NormalizeAccessSort(string? sort)
+    {
+        return string.Equals(sort, "email", StringComparison.OrdinalIgnoreCase) ? "email" : "name";
     }
 
     private async Task<InventoryFieldsViewModel> BuildFieldsViewModelAsync(Inventory inventory, InventoryFieldFormViewModel? form = null)

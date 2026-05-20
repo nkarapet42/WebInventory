@@ -1,9 +1,12 @@
 @model WebInventory.Web.Models.InventoryAccessViewModel
 
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select@2.4.3/dist/css/tom-select.bootstrap5.min.css" />
+
 <h1>Access for @Model.Inventory.Title</h1>
 
 <form asp-action="AddAccess" method="post" class="mb-4">
     <input type="hidden" name="id" value="@Model.Inventory.Id" />
+    <input type="hidden" name="SortMode" value="@Model.SortMode" />
     <div class="mb-3">
         <label for="UserIdentifier" class="form-label">Add user by email or username</label>
         <input class="form-control" id="UserIdentifier" name="UserIdentifier" value="@Model.UserIdentifier" />
@@ -15,6 +18,20 @@
     <button type="submit" class="btn btn-primary">Add</button>
     <a class="btn btn-link" asp-action="Details" asp-route-id="@Model.Inventory.Id">Back</a>
 </form>
+
+<div class="d-flex justify-content-between align-items-center mb-2">
+    <h2 class="h4 mb-0">Users with write access</h2>
+    <div class="btn-group btn-group-sm" role="group" aria-label="Sort users">
+        <a class="btn @(Model.SortMode == "name" ? "btn-primary" : "btn-outline-primary")"
+           asp-action="Access"
+           asp-route-id="@Model.Inventory.Id"
+           asp-route-sort="name">Sort by name</a>
+        <a class="btn @(Model.SortMode == "email" ? "btn-primary" : "btn-outline-primary")"
+           asp-action="Access"
+           asp-route-id="@Model.Inventory.Id"
+           asp-route-sort="email">Sort by email</a>
+    </div>
+</div>
 
 <table class="table table-striped">
     <thead>
@@ -41,3 +58,37 @@
     }
     </tbody>
 </table>
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/tom-select@2.4.3/dist/js/tom-select.complete.min.js"></script>
+    <script>
+        (() => {
+            new TomSelect('#UserIdentifier', {
+                valueField: 'value',
+                labelField: 'text',
+                searchField: ['text'],
+                maxItems: 1,
+                create: false,
+                loadThrottle: 250,
+                load: async (query, callback) => {
+                    if (!query.length) {
+                        callback();
+                        return;
+                    }
+
+                    const response = await fetch(`/Inventories/UserSuggestions/@Model.Inventory.Id?q=${encodeURIComponent(query)}`);
+                    if (!response.ok) {
+                        callback();
+                        return;
+                    }
+
+                    callback(await response.json());
+                },
+                render: {
+                    option: (item, escape) => `<div>${escape(item.text)}</div>`,
+                    item: (item, escape) => `<div>${escape(item.text)}</div>`
+                }
+            });
+        })();
+    </script>
+}

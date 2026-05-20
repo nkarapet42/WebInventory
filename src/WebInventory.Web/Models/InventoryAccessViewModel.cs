@@ -8,5 +8,6 @@ public class InventoryAccessViewModel
     public required Inventory Inventory { get; set; }
     public IReadOnlyList<ApplicationUser> Writers { get; set; } = Array.Empty<ApplicationUser>();
     public string? UserIdentifier { get; set; }
+    public string SortMode { get; set; } = "name";
     public string? ErrorMessage { get; set; }
 }

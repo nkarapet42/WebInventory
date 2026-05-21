@@ -8,10 +8,16 @@
 
 <h1>Edit Item for @inventory.Title</h1>
 
+@if (TempData["ItemEditError"] is string editError)
+{
+    <div class="alert alert-danger" role="alert">@editError</div>
+}
+
 <form asp-action="Edit" method="post">
     <input type="hidden" asp-for="Id" />
     <input type="hidden" asp-for="InventoryId" />
     <input type="hidden" asp-for="RowVersion" />
+    <div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert"></div>
     <div class="mb-3">
         <label asp-for="CustomId" class="form-label"></label>
         <input asp-for="CustomId" class="form-control" />

@@ -23,6 +23,7 @@ public class InventoriesController : Controller
     private readonly ApplicationDbContext _dbContext;
     private readonly MarkdownService _markdownService;
     private readonly UserManager<ApplicationUser> _userManager;
+    private readonly IImageUploadService _imageUploadService;
 
     public InventoriesController(
         IInventoryService inventoryService,
@@ -30,7 +31,8 @@ public class InventoriesController : Controller
         ICustomIdGenerator customIdGenerator,
         ApplicationDbContext dbContext,
         MarkdownService markdownService,
-        UserManager<ApplicationUser> userManager)
+        UserManager<ApplicationUser> userManager,
+        IImageUploadService imageUploadService)
     {
         _inventoryService = inventoryService;
         _accessControlService = accessControlService;
@@ -38,6 +40,7 @@ public class InventoriesController : Controller
         _dbContext = dbContext;
         _markdownService = markdownService;
         _userManager = userManager;
+        _imageUploadService = imageUploadService;
     }
 
     [AllowAnonymous]
@@ -150,6 +153,13 @@ public class InventoriesController : Controller
             return View(model);
         }
 
+        model.ImageUrl = await ResolveImageUrlAsync(model);
+        if (!ModelState.IsValid)
+        {
+            await PopulateCategoriesAsync();
+            return View(model);
+        }
+
         var userId = _userManager.GetUserId(User);
         if (userId is null)
         {
@@ -233,6 +243,13 @@ public class InventoriesController : Controller
             return Forbid();
         }
 
+        if (!ModelState.IsValid)
+        {
+            await PopulateCategoriesAsync();
+            return View(model);
+        }
+
+        model.ImageUrl = await ResolveImageUrlAsync(model);
         if (!ModelState.IsValid)
         {
             await PopulateCategoriesAsync();
@@ -739,6 +756,30 @@ public class InventoriesController : Controller
     {
         var categories = await _inventoryService.GetCategoriesAsync();
         ViewBag.Categories = new SelectList(categories, "Id", "Name");
+    }
+
+    private async Task<string?> ResolveImageUrlAsync(InventoryFormViewModel model)
+    {
+        if (model.ImageFile is null || model.ImageFile.Length == 0)
+        {
+            return model.ImageUrl;
+        }
+
+        if (!_imageUploadService.CanUpload)
+        {
+            ModelState.AddModelError(nameof(model.ImageFile), "Cloudinary is not configured. Set CLOUDINARY_URL or Cloudinary credentials before uploading images.");
+            return model.ImageUrl;
+        }
+
+        try
+        {
+            return await _imageUploadService.UploadInventoryImageAsync(model.ImageFile, HttpContext.RequestAborted);
+        }
+        catch (InvalidOperationException ex)
+        {
+            ModelState.AddModelError(nameof(model.ImageFile), ex.Message);
+            return model.ImageUrl;
+        }
     }
 
     private async Task<string> GetTagStringAsync(Guid inventoryId)

@@ -17,7 +17,11 @@ public class InventoryFormViewModel
     public Guid? CategoryId { get; set; }
 
     [StringLength(500)]
+    [Url]
     public string? ImageUrl { get; set; }
+
+    [Display(Name = "Upload image")]
+    public IFormFile? ImageFile { get; set; }
 
     [StringLength(1000)]
     public string? Tags { get; set; }

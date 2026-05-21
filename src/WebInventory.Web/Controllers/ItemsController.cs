@@ -277,11 +277,8 @@ public class ItemsController : Controller
         var updated = await _itemService.UpdateAsync(item, model.RowVersion.Value);
         if (!updated)
         {
-            ModelState.AddModelError(string.Empty, "The item was updated by another user. Please retry.");
-            ViewBag.Inventory = inventory;
-            ViewBag.CanWrite = true;
-            ViewBag.Fields = await GetFieldsAsync(model.InventoryId);
-            return View(model);
+            TempData["ItemEditError"] = "The item was updated by another user. Reloaded the latest version.";
+            return RedirectToAction(nameof(Edit), new { id = item.Id });
         }
 
         return RedirectToAction(nameof(Index), new { inventoryId = item.InventoryId });

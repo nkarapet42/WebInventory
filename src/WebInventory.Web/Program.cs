@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Localization;
 using Microsoft.Extensions.Options;
 using System.Globalization;
@@ -22,6 +23,9 @@ var supportedCultures = new[]
 
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+builder.Services.AddDataProtection()
+    .PersistKeysToFileSystem(new DirectoryInfo("/app/keys"))
+    .SetApplicationName("WebInventory");
 builder.Services.AddDefaultIdentity<ApplicationUser>(options =>
     {
         options.SignIn.RequireConfirmedAccount = false;
@@ -40,6 +44,8 @@ builder.Services.AddScoped<IItemService, ItemService>();
 builder.Services.AddScoped<IAccessControlService, AccessControlService>();
 builder.Services.AddScoped<ISearchService, SearchService>();
 builder.Services.AddScoped<ICustomIdGenerator, CustomIdGenerator>();
+builder.Services.Configure<CloudinaryOptions>(builder.Configuration.GetSection("Cloudinary"));
+builder.Services.AddScoped<IImageUploadService, CloudinaryImageUploadService>();
 builder.Services.AddSingleton<IIdPartGenerator, FixedTextGenerator>();
 builder.Services.AddSingleton<IIdPartGenerator, Random20BitGenerator>();
 builder.Services.AddSingleton<IIdPartGenerator, Random32BitGenerator>();

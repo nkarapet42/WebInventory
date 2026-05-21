@@ -12,6 +12,27 @@ services:
     depends_on:
       db:
         condition: service_healthy
+  nginx:
+    build:
+      context: .
+      dockerfile: docker/nginx/Dockerfile
+    environment:
+      SERVER_NAME: ${SERVER_NAME:-webinventory.duckdns.org}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - certbot-www:/var/www/certbot
+      - letsencrypt:/etc/letsencrypt
+    depends_on:
+      - web
+  certbot:
+    image: certbot/certbot:v2.11.0
+    profiles:
+      - tools
+    volumes:
+      - certbot-www:/var/www/certbot
+      - letsencrypt:/etc/letsencrypt
   db:
     image: postgres:16
     env_file:
@@ -29,3 +50,5 @@ services:
 volumes:
   pgdata:
   dataprotection-keys:
+  certbot-www:
+  letsencrypt:

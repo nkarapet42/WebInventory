@@ -252,31 +252,81 @@
                 </div>
             </div>
         </div>
-        <div class="table-responsive">
-            <table class="table table-hover align-middle">
-                <thead>
-                <tr>
-                    <th>Numeric field</th>
-                    <th class="text-end">Filled</th>
-                    <th class="text-end">Average</th>
-                    <th class="text-end">Minimum</th>
-                    <th class="text-end">Maximum</th>
-                </tr>
-                </thead>
-                <tbody>
-                @foreach (var stat in Model.NumericStats)
-                {
+        <h3 class="h5">Numeric fields</h3>
+        @if (Model.NumericStats.Count == 0)
+        {
+            <p class="text-muted">No numeric fields configured.</p>
+        }
+        else
+        {
+            <div class="table-responsive mb-4">
+                <table class="table table-hover align-middle">
+                    <thead>
                     <tr>
-                        <td>@stat.Label</td>
-                        <td class="text-end">@stat.FilledCount</td>
-                        <td class="text-end">@(stat.Average?.ToString("0.##") ?? "-")</td>
-                        <td class="text-end">@(stat.Minimum?.ToString("0.##") ?? "-")</td>
-                        <td class="text-end">@(stat.Maximum?.ToString("0.##") ?? "-")</td>
+                        <th>Field</th>
+                        <th class="text-end">Filled</th>
+                        <th class="text-end">Average</th>
+                        <th class="text-end">Minimum</th>
+                        <th class="text-end">Maximum</th>
                     </tr>
-                }
-                </tbody>
-            </table>
-        </div>
+                    </thead>
+                    <tbody>
+                    @foreach (var stat in Model.NumericStats)
+                    {
+                        <tr>
+                            <td>@stat.Label</td>
+                            <td class="text-end">@stat.FilledCount</td>
+                            <td class="text-end">@(stat.Average?.ToString("0.##") ?? "-")</td>
+                            <td class="text-end">@(stat.Minimum?.ToString("0.##") ?? "-")</td>
+                            <td class="text-end">@(stat.Maximum?.ToString("0.##") ?? "-")</td>
+                        </tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+        }
+
+        <h3 class="h5">Text fields</h3>
+        @if (Model.StringStats.Count == 0)
+        {
+            <p class="text-muted">No text fields configured.</p>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="table table-hover align-middle">
+                    <thead>
+                    <tr>
+                        <th>Field</th>
+                        <th class="text-end">Filled</th>
+                        <th>Most frequent values</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    @foreach (var stat in Model.StringStats)
+                    {
+                        <tr>
+                            <td>@stat.Label</td>
+                            <td class="text-end">@stat.FilledCount</td>
+                            <td>
+                                @if (stat.TopValues.Count == 0)
+                                {
+                                    <span class="text-muted">No values yet.</span>
+                                }
+                                else
+                                {
+                                    @foreach (var value in stat.TopValues)
+                                    {
+                                        <span class="badge text-bg-secondary me-1">@value.Value (@value.Count)</span>
+                                    }
+                                }
+                            </td>
+                        </tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+        }
     </section>
 </div>
 

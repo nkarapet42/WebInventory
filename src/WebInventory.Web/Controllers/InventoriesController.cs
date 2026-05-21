@@ -109,7 +109,8 @@ public class InventoriesController : Controller
             LatestCustomIdPattern = await _inventoryService.GetLatestCustomIdPatternAsync(id),
             Fields = fields,
             Comments = comments,
-            NumericStats = await BuildNumericStatsAsync(id, fields)
+            NumericStats = await BuildNumericStatsAsync(id, fields),
+            StringStats = await BuildStringStatsAsync(id, fields)
         };
 
         return View(model);
@@ -962,19 +963,29 @@ public class InventoriesController : Controller
             .Where(field => field.FieldType == InventoryFieldType.Number)
             .ToDictionary(field => field.SlotNumber);
 
-        return new[]
+        var stats = new[]
         {
             await BuildNumericSlotStatsAsync(items, configuredNumberFields, 1),
             await BuildNumericSlotStatsAsync(items, configuredNumberFields, 2),
             await BuildNumericSlotStatsAsync(items, configuredNumberFields, 3)
         };
+
+        return stats
+            .Where(stat => stat is not null)
+            .Cast<NumericFieldStatsViewModel>()
+            .ToArray();
     }
 
-    private static async Task<NumericFieldStatsViewModel> BuildNumericSlotStatsAsync(
+    private static async Task<NumericFieldStatsViewModel?> BuildNumericSlotStatsAsync(
         IQueryable<Item> items,
         IReadOnlyDictionary<int, InventoryField> configuredFields,
         int slotNumber)
     {
+        if (!configuredFields.TryGetValue(slotNumber, out var field))
+        {
+            return null;
+        }
+
         var values = slotNumber switch
         {
             1 => items.Where(item => item.Num1.HasValue).Select(item => item.Num1!.Value),
@@ -986,11 +997,72 @@ public class InventoriesController : Controller
         var filledCount = await values.CountAsync();
         return new NumericFieldStatsViewModel
         {
-            Label = configuredFields.TryGetValue(slotNumber, out var field) ? field.Title : $"Number {slotNumber}",
+            Label = field.Title,
             FilledCount = filledCount,
             Average = filledCount == 0 ? null : await values.AverageAsync(),
             Minimum = filledCount == 0 ? null : await values.MinAsync(),
             Maximum = filledCount == 0 ? null : await values.MaxAsync()
+        };
+    }
+
+    private async Task<IReadOnlyList<StringFieldStatsViewModel>> BuildStringStatsAsync(Guid inventoryId, IReadOnlyList<InventoryField> fields)
+    {
+        var items = _dbContext.Items
+            .AsNoTracking()
+            .Where(item => item.InventoryId == inventoryId);
+
+        var configuredTextFields = fields
+            .Where(field => field.FieldType == InventoryFieldType.Text)
+            .ToDictionary(field => field.SlotNumber);
+
+        var stats = new[]
+        {
+            await BuildStringSlotStatsAsync(items, configuredTextFields, 1),
+            await BuildStringSlotStatsAsync(items, configuredTextFields, 2),
+            await BuildStringSlotStatsAsync(items, configuredTextFields, 3)
+        };
+
+        return stats
+            .Where(stat => stat is not null)
+            .Cast<StringFieldStatsViewModel>()
+            .ToArray();
+    }
+
+    private static async Task<StringFieldStatsViewModel?> BuildStringSlotStatsAsync(
+        IQueryable<Item> items,
+        IReadOnlyDictionary<int, InventoryField> configuredFields,
+        int slotNumber)
+    {
+        if (!configuredFields.TryGetValue(slotNumber, out var field))
+        {
+            return null;
+        }
+
+        var values = slotNumber switch
+        {
+            1 => items.Where(item => item.Text1 != null && item.Text1 != string.Empty).Select(item => item.Text1!),
+            2 => items.Where(item => item.Text2 != null && item.Text2 != string.Empty).Select(item => item.Text2!),
+            3 => items.Where(item => item.Text3 != null && item.Text3 != string.Empty).Select(item => item.Text3!),
+            _ => throw new ArgumentOutOfRangeException(nameof(slotNumber), slotNumber, "Unsupported text field slot.")
+        };
+
+        var topValues = await values
+            .GroupBy(value => value)
+            .Select(group => new StringValueFrequencyViewModel
+            {
+                Value = group.Key,
+                Count = group.Count()
+            })
+            .OrderByDescending(row => row.Count)
+            .ThenBy(row => row.Value)
+            .Take(5)
+            .ToListAsync();
+
+        return new StringFieldStatsViewModel
+        {
+            Label = field.Title,
+            FilledCount = await values.CountAsync(),
+            TopValues = topValues
         };
     }
 }

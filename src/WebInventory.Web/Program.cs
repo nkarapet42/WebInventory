@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Localization;
 using Microsoft.Extensions.Options;
 using System.Globalization;
@@ -23,6 +24,14 @@ var supportedCultures = new[]
 
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor
+        | ForwardedHeaders.XForwardedProto
+        | ForwardedHeaders.XForwardedHost;
+    options.KnownNetworks.Clear();
+    options.KnownProxies.Clear();
+});
 builder.Services.AddDataProtection()
     .PersistKeysToFileSystem(new DirectoryInfo("/app/keys"))
     .SetApplicationName("WebInventory");
@@ -73,6 +82,7 @@ builder.Services.AddRazorPages();
 builder.Services.AddSignalR();
 
 var app = builder.Build();
+app.UseForwardedHeaders();
 
 using (var scope = app.Services.CreateScope())
 {
@@ -188,7 +198,8 @@ static ExternalProviderOptions? GetExternalProviderOptions(IConfiguration config
 {
     var clientId = FirstConfiguredValue(
         configuration[$"Authentication:{provider}:ClientId"],
-        configuration[$"{provider.ToUpperInvariant()}_CLIENT_ID"]);
+        configuration[$"{provider.ToUpperInvariant()}_CLIENT_ID"],
+        configuration[$"{provider.ToUpperInvariant()}_APP_ID"]);
     var clientSecret = FirstConfiguredValue(
         configuration[$"Authentication:{provider}:ClientSecret"],
         configuration[$"{provider.ToUpperInvariant()}_CLIENT_SECRET"]);

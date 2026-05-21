@@ -13,6 +13,7 @@ public class InventoryDetailsViewModel
     public IReadOnlyList<InventoryField> Fields { get; set; } = Array.Empty<InventoryField>();
     public IReadOnlyList<InventoryCommentViewModel> Comments { get; set; } = Array.Empty<InventoryCommentViewModel>();
     public IReadOnlyList<NumericFieldStatsViewModel> NumericStats { get; set; } = Array.Empty<NumericFieldStatsViewModel>();
+    public IReadOnlyList<StringFieldStatsViewModel> StringStats { get; set; } = Array.Empty<StringFieldStatsViewModel>();
 }
 
 public class NumericFieldStatsViewModel
@@ -22,4 +23,17 @@ public class NumericFieldStatsViewModel
     public decimal? Average { get; set; }
     public decimal? Minimum { get; set; }
     public decimal? Maximum { get; set; }
+}
+
+public class StringFieldStatsViewModel
+{
+    public required string Label { get; set; }
+    public int FilledCount { get; set; }
+    public IReadOnlyList<StringValueFrequencyViewModel> TopValues { get; set; } = Array.Empty<StringValueFrequencyViewModel>();
+}
+
+public class StringValueFrequencyViewModel
+{
+    public required string Value { get; set; }
+    public int Count { get; set; }
 }

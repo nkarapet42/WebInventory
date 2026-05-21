@@ -7,6 +7,8 @@ services:
       - "8080:8080"
     env_file:
       - .env
+    volumes:
+      - dataprotection-keys:/app/keys
     depends_on:
       db:
         condition: service_healthy
@@ -26,3 +28,4 @@ services:
 
 volumes:
   pgdata:
+  dataprotection-keys:

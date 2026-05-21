@@ -37,6 +37,7 @@ builder.Services.ConfigureApplicationCookie(options =>
 {
     options.AccessDeniedPath = "/";
 });
+ConfigureExternalAuthentication(builder.Services, builder.Configuration);
 builder.Services.AddScoped<IClaimsTransformation, DatabaseRoleClaimsTransformation>();
 builder.Services.AddSingleton<MarkdownService>();
 builder.Services.AddScoped<IInventoryService, InventoryService>();
@@ -158,3 +159,48 @@ static string[] SplitEmails(string? value)
         ? Array.Empty<string>()
         : value.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 }
+
+static void ConfigureExternalAuthentication(IServiceCollection services, IConfiguration configuration)
+{
+    var authentication = services.AddAuthentication();
+    var google = GetExternalProviderOptions(configuration, "Google");
+    if (google is not null)
+    {
+        authentication.AddGoogle(options =>
+        {
+            options.ClientId = google.Value.ClientId;
+            options.ClientSecret = google.Value.ClientSecret;
+        });
+    }
+
+    var facebook = GetExternalProviderOptions(configuration, "Facebook");
+    if (facebook is not null)
+    {
+        authentication.AddFacebook(options =>
+        {
+            options.AppId = facebook.Value.ClientId;
+            options.AppSecret = facebook.Value.ClientSecret;
+        });
+    }
+}
+
+static ExternalProviderOptions? GetExternalProviderOptions(IConfiguration configuration, string provider)
+{
+    var clientId = FirstConfiguredValue(
+        configuration[$"Authentication:{provider}:ClientId"],
+        configuration[$"{provider.ToUpperInvariant()}_CLIENT_ID"]);
+    var clientSecret = FirstConfiguredValue(
+        configuration[$"Authentication:{provider}:ClientSecret"],
+        configuration[$"{provider.ToUpperInvariant()}_CLIENT_SECRET"]);
+
+    return string.IsNullOrWhiteSpace(clientId) || string.IsNullOrWhiteSpace(clientSecret)
+        ? null
+        : new ExternalProviderOptions(clientId, clientSecret);
+}
+
+static string? FirstConfiguredValue(params string?[] values)
+{
+    return values.FirstOrDefault(value => !string.IsNullOrWhiteSpace(value));
+}
+
+readonly record struct ExternalProviderOptions(string ClientId, string ClientSecret);

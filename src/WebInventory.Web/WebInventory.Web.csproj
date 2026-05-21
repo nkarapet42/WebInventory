@@ -14,6 +14,8 @@
   <ItemGroup>
     <PackageReference Include="CloudinaryDotNet" Version="1.27.5" />
     <PackageReference Include="Markdig" Version="0.37.0" />
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.Facebook" Version="8.0.5" />
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.Google" Version="8.0.5" />
     <PackageReference Include="Microsoft.AspNetCore.Identity.UI" Version="8.0.5" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="8.0.5">
       <PrivateAssets>all</PrivateAssets>

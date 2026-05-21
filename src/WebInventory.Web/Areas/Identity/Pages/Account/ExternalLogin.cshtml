@@ -1,0 +1,18 @@
+@page
+@model WebInventory.Web.Areas.Identity.Pages.Account.ExternalLoginModel
+@{
+    ViewData["Title"] = "External login";
+}
+
+<h1>External login</h1>
+
+@if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
+{
+    <div class="alert alert-danger" role="alert">@Model.ErrorMessage</div>
+}
+
+<p>
+    We could not complete the external login. Please return to the login page and try again.
+</p>
+
+<a class="btn btn-primary" asp-page="./Login">Back to login</a>

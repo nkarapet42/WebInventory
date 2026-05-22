@@ -552,10 +552,14 @@ public class InventoriesController : Controller
             ? CustomIdDefaults.DefaultPattern
             : model.Pattern.Trim();
 
-        var partCount = selectedPattern.Split('|', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).Length;
-        if (partCount > CustomIdDefaults.MaxPatternParts)
+        var patternErrors = ValidateCustomIdPattern(selectedPattern).ToArray();
+        if (patternErrors.Length > 0)
         {
-            ModelState.AddModelError(nameof(model.Pattern), $"Use no more than {CustomIdDefaults.MaxPatternParts} ID parts.");
+            foreach (var error in patternErrors)
+            {
+                ModelState.AddModelError(nameof(model.Pattern), error);
+            }
+
             model.Preview = await _customIdGenerator.GenerateAsync(inventory);
             return View(model);
         }
@@ -746,6 +750,103 @@ public class InventoriesController : Controller
             new("FIX:LAP-|DATE:yyyyMMdd-|R6", "FIX:LAP-|DATE:yyyyMMdd-|R6"),
             new("GUID", "GUID")
         };
+    }
+
+    private static IEnumerable<string> ValidateCustomIdPattern(string pattern)
+    {
+        const int maxPatternLength = 240;
+        const int maxFixedTextLength = 40;
+        const int maxDateFormatLength = 24;
+        const int maxSequenceWidth = 12;
+
+        if (string.IsNullOrWhiteSpace(pattern))
+        {
+            yield return "Use at least one ID part.";
+            yield break;
+        }
+
+        if (pattern.Length > maxPatternLength)
+        {
+            yield return $"Custom ID pattern must be {maxPatternLength} characters or less.";
+        }
+
+        var allowedTypes = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "FIX",
+            "R20",
+            "R32",
+            "R6",
+            "R9",
+            "GUID",
+            "DATE",
+            "SEQ"
+        };
+        var parts = pattern
+            .Split('|', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .ToArray();
+
+        if (parts.Length == 0)
+        {
+            yield return "Use at least one ID part.";
+            yield break;
+        }
+
+        if (parts.Length > CustomIdDefaults.MaxPatternParts)
+        {
+            yield return $"Use no more than {CustomIdDefaults.MaxPatternParts} ID parts.";
+        }
+
+        foreach (var part in parts)
+        {
+            var segments = part.Split(':', 2, StringSplitOptions.TrimEntries);
+            var type = segments[0];
+            var value = segments.Length > 1 ? segments[1] : string.Empty;
+            if (!allowedTypes.Contains(type))
+            {
+                yield return $"Unsupported ID part '{type}'.";
+                continue;
+            }
+
+            if (type.Equals("FIX", StringComparison.OrdinalIgnoreCase) && value.Length > maxFixedTextLength)
+            {
+                yield return $"Fixed text must be {maxFixedTextLength} characters or less.";
+            }
+
+            if (type.Equals("DATE", StringComparison.OrdinalIgnoreCase))
+            {
+                if (value.Length is < 1 or > maxDateFormatLength)
+                {
+                    yield return $"Date/time format must be 1 to {maxDateFormatLength} characters.";
+                    continue;
+                }
+
+                if (!CanFormatDate(value))
+                {
+                    yield return "Date/time format is not valid.";
+                }
+            }
+
+            if (type.Equals("SEQ", StringComparison.OrdinalIgnoreCase))
+            {
+                if (!int.TryParse(value, out var width) || width is < 1 or > maxSequenceWidth)
+                {
+                    yield return $"Sequence width must be a number from 1 to {maxSequenceWidth}.";
+                }
+            }
+        }
+    }
+
+    private static bool CanFormatDate(string format)
+    {
+        try
+        {
+            _ = DateTime.UtcNow.ToString(format, System.Globalization.CultureInfo.InvariantCulture);
+            return true;
+        }
+        catch (FormatException)
+        {
+            return false;
+        }
     }
 
     private async Task<bool> CanManageAsync(Inventory inventory)

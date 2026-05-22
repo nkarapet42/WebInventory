@@ -62,6 +62,7 @@
                 <button id="likeItemBtn" class="btn btn-outline-primary" type="button" disabled>Like</button>
             </form>
         }
+        <button id="openItemBtn" class="btn btn-outline-secondary" type="button" disabled>Open</button>
         @if (canWrite)
         {
             <a class="btn btn-primary" asp-action="Create" asp-route-inventoryId="@inventory.Id">New Item</a>
@@ -102,6 +103,7 @@
         onSelectionChanged: event => {
             const selected = event.api.getSelectedRows();
             const hasSelection = selected.length === 1;
+            document.getElementById('openItemBtn').disabled = !hasSelection;
             if (isAuthenticated) {
                 const likeButton = document.getElementById('likeItemBtn');
                 likeButton.disabled = !hasSelection;
@@ -112,25 +114,42 @@
                 document.getElementById('deleteItemBtn').disabled = !hasSelection;
             }
         },
-        getContextMenuItems: params => {
-            if (!canWrite) {
-                return [];
+        onRowDoubleClicked: event => {
+            const row = event.data;
+            if (row) {
+                window.location.href = canWrite ? `/Items/Edit/${row.id}` : `/Items/Details/${row.id}`;
             }
+        },
+        getContextMenuItems: params => {
             const row = params.node?.data;
             if (!row) {
                 return [];
             }
-            return [
+            const items = [
                 'copy',
                 'separator',
-                { name: 'Edit', action: () => window.location.href = `/Items/Edit/${row.id}` },
-                { name: 'Delete', action: () => window.location.href = `/Items/Delete/${row.id}` }
+                { name: 'Open', action: () => window.location.href = `/Items/Details/${row.id}` }
             ];
+
+            if (canWrite) {
+                items.push(
+                    { name: 'Edit', action: () => window.location.href = `/Items/Edit/${row.id}` },
+                    { name: 'Delete', action: () => window.location.href = `/Items/Delete/${row.id}` });
+            }
+
+            return items;
         }
     };
 
     const gridDiv = document.getElementById('itemsGrid');
     const gridApi = agGrid.createGrid(gridDiv, gridOptions);
+
+    document.getElementById('openItemBtn').addEventListener('click', () => {
+        const selected = gridApi.getSelectedRows();
+        if (selected.length === 1) {
+            window.location.href = `/Items/Details/${selected[0].id}`;
+        }
+    });
 
     if (isAuthenticated) {
         document.getElementById('likeItemBtn').addEventListener('click', async () => {

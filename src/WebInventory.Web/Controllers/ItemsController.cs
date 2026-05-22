@@ -83,6 +83,38 @@ public class ItemsController : Controller
         return View(items);
     }
 
+    [AllowAnonymous]
+    public async Task<IActionResult> Details(Guid id)
+    {
+        var item = await _itemService.GetByIdAsync(id);
+        if (item is null)
+        {
+            return NotFound();
+        }
+
+        var inventory = await _inventoryService.GetByIdAsync(item.InventoryId);
+        if (inventory is null)
+        {
+            return NotFound();
+        }
+
+        ViewBag.Inventory = inventory;
+        ViewBag.CanWrite = await CanWriteAsync(inventory);
+        ViewBag.Fields = await GetFieldsAsync(item.InventoryId);
+        ViewBag.CreatorName = string.IsNullOrWhiteSpace(item.CreatedByUserId)
+            ? null
+            : await _dbContext.Users
+                .AsNoTracking()
+                .Where(user => user.Id == item.CreatedByUserId)
+                .Select(user => user.UserName ?? user.Email)
+                .FirstOrDefaultAsync();
+        ViewBag.LikeCount = await _dbContext.ItemLikes
+            .AsNoTracking()
+            .CountAsync(like => like.ItemId == item.Id);
+
+        return View(item);
+    }
+
     public async Task<IActionResult> Create(Guid inventoryId)
     {
         var inventory = await _inventoryService.GetByIdAsync(inventoryId);
@@ -128,6 +160,22 @@ public class ItemsController : Controller
         var customId = string.IsNullOrWhiteSpace(model.CustomId)
             ? await _customIdGenerator.GenerateAsync(inventory)
             : model.CustomId!.Trim();
+        if (!await _customIdGenerator.MatchesCurrentPatternAsync(inventory, customId))
+        {
+            ModelState.AddModelError(nameof(model.CustomId), "Custom ID does not match the current inventory ID pattern.");
+            await PrepareItemFormAsync(inventory, canWrite: true);
+            model.CustomId = customId;
+            return View(model);
+        }
+
+        if (await CustomIdExistsAsync(model.InventoryId, customId))
+        {
+            ModelState.AddModelError(nameof(model.CustomId), "Custom ID already exists in this inventory. Edit it manually and try again.");
+            await PrepareItemFormAsync(inventory, canWrite: true);
+            model.CustomId = customId;
+            return View(model);
+        }
+
         var userId = _userManager.GetUserId(User);
 
         var item = new Item
@@ -155,7 +203,18 @@ public class ItemsController : Controller
             UpdatedAt = DateTime.UtcNow
         };
 
-        await _itemService.AddAsync(item);
+        try
+        {
+            await _itemService.AddAsync(item);
+        }
+        catch (DbUpdateException)
+        {
+            ModelState.AddModelError(nameof(model.CustomId), "Custom ID already exists in this inventory. Edit it manually and try again.");
+            await PrepareItemFormAsync(inventory, canWrite: true);
+            model.CustomId = customId;
+            return View(model);
+        }
+
         return RedirectToAction(nameof(Index), new { inventoryId = model.InventoryId });
     }
 
@@ -257,7 +316,22 @@ public class ItemsController : Controller
             return View(model);
         }
 
-        item.CustomId = model.CustomId.Trim();
+        var customId = model.CustomId.Trim();
+        if (!await _customIdGenerator.MatchesCurrentPatternAsync(inventory, customId))
+        {
+            ModelState.AddModelError(nameof(model.CustomId), "Custom ID does not match the current inventory ID pattern.");
+            await PrepareItemFormAsync(inventory, canWrite: true);
+            return View(model);
+        }
+
+        if (await CustomIdExistsAsync(model.InventoryId, customId, item.Id))
+        {
+            ModelState.AddModelError(nameof(model.CustomId), "Custom ID already exists in this inventory. Edit it manually and try again.");
+            await PrepareItemFormAsync(inventory, canWrite: true);
+            return View(model);
+        }
+
+        item.CustomId = customId;
         item.Text1 = model.Text1;
         item.Text2 = model.Text2;
         item.Text3 = model.Text3;
@@ -274,7 +348,18 @@ public class ItemsController : Controller
         item.Bool2 = model.Bool2;
         item.Bool3 = model.Bool3;
 
-        var updated = await _itemService.UpdateAsync(item, model.RowVersion.Value);
+        bool updated;
+        try
+        {
+            updated = await _itemService.UpdateAsync(item, model.RowVersion.Value);
+        }
+        catch (DbUpdateException)
+        {
+            ModelState.AddModelError(nameof(model.CustomId), "Custom ID already exists in this inventory. Edit it manually and try again.");
+            await PrepareItemFormAsync(inventory, canWrite: true);
+            return View(model);
+        }
+
         if (!updated)
         {
             TempData["ItemEditError"] = "The item was updated by another user. Reloaded the latest version.";
@@ -386,6 +471,23 @@ public class ItemsController : Controller
     private async Task<bool> CanWriteAsync(Inventory inventory)
     {
         return await _accessControlService.CanWriteAsync(inventory, User);
+    }
+
+    private async Task PrepareItemFormAsync(Inventory inventory, bool canWrite)
+    {
+        ViewBag.Inventory = inventory;
+        ViewBag.CanWrite = canWrite;
+        ViewBag.Fields = await GetFieldsAsync(inventory.Id);
+    }
+
+    private async Task<bool> CustomIdExistsAsync(Guid inventoryId, string customId, Guid? exceptItemId = null)
+    {
+        return await _dbContext.Items
+            .AsNoTracking()
+            .AnyAsync(item =>
+                item.InventoryId == inventoryId
+                && item.CustomId == customId
+                && (exceptItemId == null || item.Id != exceptItemId));
     }
 
     private async Task<IReadOnlyList<InventoryField>> GetFieldsAsync(Guid inventoryId)

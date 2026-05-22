@@ -16,6 +16,7 @@
     <input type="hidden" asp-for="InventoryId" />
     <input type="hidden" asp-for="Pattern" id="Pattern" />
     <span asp-validation-for="Pattern" class="text-danger"></span>
+    <div id="builder-error" class="alert alert-danger d-none" role="alert"></div>
 
     <div class="row g-4">
         <div class="col-lg-4">
@@ -104,7 +105,7 @@
                 label: 'Sequence',
                 help: 'Uses the next sequence number inside this inventory. Value controls leading zero length.',
                 placeholder: '6',
-                sample: value => (13).toString().padStart(parseInt(value || '0', 10) || 0, '0')
+                sample: value => (13).toString().padStart(clampSequenceWidth(value), '0')
             }
         };
 
@@ -113,6 +114,7 @@
         const patternInput = document.getElementById('Pattern');
         const patternPreview = document.getElementById('pattern-preview');
         const livePreview = document.getElementById('live-preview');
+        const builderError = document.getElementById('builder-error');
 
         parsePattern(initialPattern).forEach(part => addPart(part.type, part.value));
         if (!builder.children.length) {
@@ -150,6 +152,7 @@
 
         document.addEventListener('input', event => {
             if (event.target.matches('[data-part-value]')) {
+                normalizePartInput(event.target);
                 updateOutput();
             }
         });
@@ -190,11 +193,12 @@
 
             return `
                 <label class="form-label small">${type === 'FIX' ? 'Text' : 'Format'}</label>
-                <input data-part-value class="form-control" value="${escapeAttribute(value || '')}" placeholder="${escapeAttribute(definition.placeholder || '')}" />`;
+                <input data-part-value class="form-control" ${inputAttributes(type)} value="${escapeAttribute(normalizeInitialValue(type, value || ''))}" placeholder="${escapeAttribute(definition.placeholder || '')}" />`;
         }
 
         function updateOutput() {
             const parts = [...builder.querySelectorAll('[data-part-type]')].slice(0, maxParts);
+            const errors = validateParts(parts);
             const pattern = parts
                 .map(part => serializePart(part.dataset.partType, part.querySelector('[data-part-value]')?.value || ''))
                 .filter(Boolean)
@@ -209,6 +213,9 @@
                     return partDefinitions[type].sample(value);
                 })
                 .join('');
+
+            builderError.classList.toggle('d-none', errors.length === 0);
+            builderError.textContent = errors.join(' ');
         }
 
         function serializePart(type, value) {
@@ -231,6 +238,90 @@
                         : { type: raw.substring(0, separator).toUpperCase(), value: raw.substring(separator + 1) };
                 })
                 .filter(part => Object.prototype.hasOwnProperty.call(partDefinitions, part.type));
+        }
+
+        function inputAttributes(type) {
+            if (type === 'FIX') {
+                return 'maxlength="40"';
+            }
+
+            if (type === 'DATE') {
+                return 'maxlength="24"';
+            }
+
+            if (type === 'SEQ') {
+                return 'type="number" min="1" max="12" step="1" inputmode="numeric"';
+            }
+
+            return '';
+        }
+
+        function normalizeInitialValue(type, value) {
+            if (type === 'SEQ') {
+                return clampSequenceWidth(value).toString();
+            }
+
+            if (type === 'FIX') {
+                return value.substring(0, 40);
+            }
+
+            if (type === 'DATE') {
+                return value.substring(0, 24);
+            }
+
+            return value;
+        }
+
+        function normalizePartInput(input) {
+            const type = input.closest('[data-part-type]')?.dataset.partType;
+            if (type === 'SEQ') {
+                input.value = clampSequenceWidth(input.value).toString();
+            } else if (type === 'FIX' && input.value.length > 40) {
+                input.value = input.value.substring(0, 40);
+            } else if (type === 'DATE' && input.value.length > 24) {
+                input.value = input.value.substring(0, 24);
+            }
+        }
+
+        function clampSequenceWidth(value) {
+            const parsed = parseInt(value || '6', 10);
+            if (!Number.isFinite(parsed)) {
+                return 6;
+            }
+
+            return Math.min(Math.max(parsed, 1), 12);
+        }
+
+        function validateParts(parts) {
+            const errors = [];
+            if (!parts.length) {
+                errors.push('Use at least one ID part.');
+            }
+
+            if (parts.length > maxParts) {
+                errors.push(`Use no more than ${maxParts} ID parts.`);
+            }
+
+            parts.forEach(part => {
+                const type = part.dataset.partType;
+                const value = part.querySelector('[data-part-value]')?.value || '';
+                if (type === 'FIX' && value.length > 40) {
+                    errors.push('Fixed text must be 40 characters or less.');
+                }
+
+                if (type === 'DATE' && (value.length < 1 || value.length > 24)) {
+                    errors.push('Date/time format must be 1 to 24 characters.');
+                }
+
+                if (type === 'SEQ') {
+                    const parsed = parseInt(value, 10);
+                    if (!Number.isInteger(parsed) || parsed < 1 || parsed > 12) {
+                        errors.push('Sequence width must be a number from 1 to 12.');
+                    }
+                }
+            });
+
+            return [...new Set(errors)];
         }
 
         function formatDatePreview(format) {

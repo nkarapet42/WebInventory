@@ -1,0 +1,121 @@
+@using WebInventory.Domain.Entities
+@using WebInventory.Domain.Enums
+@model WebInventory.Domain.Entities.Item
+@{
+    var inventory = (Inventory)ViewBag.Inventory;
+    var fields = (IReadOnlyList<InventoryField>)ViewBag.Fields;
+    var canWrite = ViewBag.CanWrite is true;
+    var creatorName = ViewBag.CreatorName as string;
+    var likeCount = ViewBag.LikeCount is int count ? count : 0;
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h1 class="mb-1">@Model.CustomId</h1>
+        <div class="text-muted">Item in <a asp-controller="Inventories" asp-action="Details" asp-route-id="@inventory.Id">@inventory.Title</a></div>
+    </div>
+    <div class="d-flex gap-2">
+        @if (canWrite)
+        {
+            <a class="btn btn-primary" asp-action="Edit" asp-route-id="@Model.Id">Edit</a>
+            <a class="btn btn-outline-danger" asp-action="Delete" asp-route-id="@Model.Id">Delete</a>
+        }
+        <a class="btn btn-outline-secondary" asp-action="Index" asp-route-inventoryId="@inventory.Id">Back to table</a>
+    </div>
+</div>
+
+<dl class="row">
+    <dt class="col-sm-3">Custom ID</dt>
+    <dd class="col-sm-9">@Model.CustomId</dd>
+
+    <dt class="col-sm-3">Created by</dt>
+    <dd class="col-sm-9">@(creatorName ?? "Unknown")</dd>
+
+    <dt class="col-sm-3">Created</dt>
+    <dd class="col-sm-9">@Model.CreatedAt.ToString("u")</dd>
+
+    <dt class="col-sm-3">Updated</dt>
+    <dd class="col-sm-9">@Model.UpdatedAt.ToString("u")</dd>
+
+    <dt class="col-sm-3">Likes</dt>
+    <dd class="col-sm-9">@likeCount</dd>
+</dl>
+
+<h2 class="h4 mt-4">Fields</h2>
+@if (fields.Count == 0)
+{
+    <p class="text-muted">No custom fields configured.</p>
+}
+else
+{
+    <dl class="row">
+        @foreach (var field in fields)
+        {
+            var value = GetValue(field);
+            <dt class="col-sm-3">@field.Title</dt>
+            <dd class="col-sm-9">
+                @if (value is null || string.IsNullOrWhiteSpace(value.ToString()))
+                {
+                    <span class="text-muted">Empty</span>
+                }
+                else if (field.FieldType == InventoryFieldType.Boolean)
+                {
+                    @((value is true) ? "Yes" : "No")
+                }
+                else if (field.FieldType == InventoryFieldType.Document)
+                {
+                    <a href="@value" target="_blank" rel="noopener">@value</a>
+                }
+                else
+                {
+                    @value
+                }
+            </dd>
+        }
+    </dl>
+}
+
+@functions {
+    private object? GetValue(InventoryField field)
+    {
+        return field.FieldType switch
+        {
+            InventoryFieldType.Text => field.SlotNumber switch
+            {
+                1 => Model.Text1,
+                2 => Model.Text2,
+                3 => Model.Text3,
+                _ => null
+            },
+            InventoryFieldType.Multiline => field.SlotNumber switch
+            {
+                1 => Model.Multiline1,
+                2 => Model.Multiline2,
+                3 => Model.Multiline3,
+                _ => null
+            },
+            InventoryFieldType.Number => field.SlotNumber switch
+            {
+                1 => Model.Num1,
+                2 => Model.Num2,
+                3 => Model.Num3,
+                _ => null
+            },
+            InventoryFieldType.Document => field.SlotNumber switch
+            {
+                1 => Model.Doc1,
+                2 => Model.Doc2,
+                3 => Model.Doc3,
+                _ => null
+            },
+            InventoryFieldType.Boolean => field.SlotNumber switch
+            {
+                1 => Model.Bool1,
+                2 => Model.Bool2,
+                3 => Model.Bool3,
+                _ => null
+            },
+            _ => null
+        };
+    }
+}

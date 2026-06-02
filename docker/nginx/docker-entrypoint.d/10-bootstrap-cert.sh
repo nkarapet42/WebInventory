@@ -21,4 +21,3 @@ create_certificate() {
 }
 
 create_certificate "${SERVER_NAME:-webinventory.duckdns.org}"
-create_certificate "${ODOO_SERVER_NAME:-odoo.webinventory.duckdns.org}"

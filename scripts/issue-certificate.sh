@@ -8,7 +8,6 @@ if [ -f .env ]; then
 fi
 
 domain="${SERVER_NAME:-webinventory.duckdns.org}"
-odoo_domain="${ODOO_SERVER_NAME:-odoo.webinventory.duckdns.org}"
 admin_email="${ADMIN_EMAILS:-}"
 email="${LETSENCRYPT_EMAIL:-${admin_email%%,*}}"
 
@@ -24,7 +23,6 @@ docker compose run --rm certbot certonly \
     --agree-tos \
     --no-eff-email \
     --force-renewal \
-    -d "${domain}" \
-    -d "${odoo_domain}"
+    -d "${domain}"
 
 docker compose exec nginx nginx -s reload

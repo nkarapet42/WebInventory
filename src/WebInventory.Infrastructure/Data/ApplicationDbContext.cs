@@ -65,6 +65,8 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
             entity.Property(e => e.Title).HasMaxLength(200).IsRequired();
             entity.Property(e => e.DescriptionMarkdown).HasMaxLength(4000);
             entity.Property(e => e.ImageUrl).HasMaxLength(500);
+            entity.Property(e => e.ApiTokenHash).HasMaxLength(64);
+            entity.HasIndex(e => e.ApiTokenHash).IsUnique();
             entity.Property(e => e.RowVersion)
                 .HasColumnName("xmin")
                 .IsConcurrencyToken()

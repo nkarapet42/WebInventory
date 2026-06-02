@@ -1,0 +1,5 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_web_inventory_user,web.inventory user,model_web_inventory,base.group_user,1,0,0,0
+access_web_inventory_field_user,web.inventory.field user,model_web_inventory_field,base.group_user,1,0,0,0
+access_web_inventory_value_user,web.inventory.value user,model_web_inventory_value,base.group_user,1,0,0,0
+access_web_inventory_import_wizard_user,web.inventory.import.wizard user,model_web_inventory_import_wizard,base.group_user,1,1,1,1

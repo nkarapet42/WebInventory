@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <record id="web_inventory_import_wizard_view_form" model="ir.ui.view">
+        <field name="name">web.inventory.import.wizard.form</field>
+        <field name="model">web.inventory.import.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Import WebInventory Aggregates">
+                <group>
+                    <field name="api_url"/>
+                    <field name="api_token" password="True"/>
+                </group>
+                <footer>
+                    <button name="action_import" string="Import" type="object" class="btn-primary"/>
+                    <button string="Cancel" special="cancel" class="btn-secondary"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <record id="web_inventory_import_wizard_action" model="ir.actions.act_window">
+        <field name="name">Import from WebInventory</field>
+        <field name="res_model">web.inventory.import.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+    </record>
+
+    <menuitem id="web_inventory_import_menu" name="Import" parent="web_inventory_root_menu" action="web_inventory_import_wizard_action" sequence="20"/>
+</odoo>

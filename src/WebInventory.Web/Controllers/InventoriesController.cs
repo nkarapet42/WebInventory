@@ -740,6 +740,30 @@ public class InventoriesController : Controller
         return Ok();
     }
 
+    [Authorize]
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> GenerateApiToken(Guid id)
+    {
+        var inventory = await _inventoryService.GetByIdForEditAsync(id);
+        if (inventory is null)
+        {
+            return NotFound();
+        }
+
+        if (!await CanManageAsync(inventory))
+        {
+            return Forbid();
+        }
+
+        var token = InventoryApiTokenService.Generate();
+        inventory.ApiTokenHash = InventoryApiTokenService.Hash(token);
+        inventory.ApiTokenCreatedAt = DateTime.UtcNow;
+        await _dbContext.SaveChangesAsync();
+        TempData["InventoryApiToken"] = token;
+        return Redirect($"{Url.Action(nameof(Details), new { id })}#settings");
+    }
+
     private static IReadOnlyList<SelectListItem> GetPatternOptions()
     {
         return new List<SelectListItem>

@@ -149,6 +149,44 @@
             <dt class="col-sm-3">Updated</dt>
             <dd class="col-sm-9">@inventory.UpdatedAt.ToString("u")</dd>
         </dl>
+
+        @if (Model.CanManage)
+        {
+            <hr />
+            <h3 class="h5">Odoo API Token</h3>
+            <p class="text-muted">
+                Generate a token for read-only access to this inventory's aggregated results.
+                Rotating the token immediately invalidates the previous token.
+            </p>
+            @if (TempData["InventoryApiToken"] is string inventoryApiToken)
+            {
+                <div class="alert alert-warning">
+                    <p class="mb-2"><strong>Copy this token now.</strong> It will not be shown again.</p>
+                    <code class="d-block text-break">@inventoryApiToken</code>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label" for="inventoryApiUrl">Aggregates API URL</label>
+                    <input id="inventoryApiUrl"
+                           class="form-control"
+                           type="text"
+                           readonly
+                           value="@($"{Context.Request.Scheme}://{Context.Request.Host}/api/inventories/aggregates")" />
+                </div>
+            }
+            else if (inventory.ApiTokenCreatedAt is not null)
+            {
+                <p>Current token generated at @inventory.ApiTokenCreatedAt.Value.ToString("u").</p>
+            }
+            else
+            {
+                <p>No API token has been generated.</p>
+            }
+            <form asp-action="GenerateApiToken" asp-route-id="@inventory.Id" method="post">
+                <button class="btn btn-outline-primary" type="submit">
+                    @(inventory.ApiTokenCreatedAt is null ? "Generate API Token" : "Rotate API Token")
+                </button>
+            </form>
+        }
     </section>
 
     <section class="tab-pane fade" id="custom-ids" role="tabpanel" aria-labelledby="custom-ids-tab" tabindex="0">
@@ -339,11 +377,19 @@
     <script>
         (() => {
             const inventoryId = '@inventory.Id';
+            const selectedTab = window.location.hash;
             const list = document.getElementById('discussion-list');
             const empty = document.getElementById('discussion-empty');
             const count = document.getElementById('discussion-count');
             const form = document.getElementById('discussion-form');
             let postCount = @Model.CommentCount;
+
+            if (selectedTab) {
+                const tabButton = document.querySelector(`[data-bs-target="${selectedTab}"]`);
+                if (tabButton) {
+                    bootstrap.Tab.getOrCreateInstance(tabButton).show();
+                }
+            }
 
             function appendComment(comment) {
                 if (list.querySelector(`[data-comment-id="${comment.id}"]`)) {

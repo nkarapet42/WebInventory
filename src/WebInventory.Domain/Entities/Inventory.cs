@@ -10,6 +10,8 @@ public class Inventory
     public required string Title { get; set; }
     public string? DescriptionMarkdown { get; set; }
     public string? ImageUrl { get; set; }
+    public string? ApiTokenHash { get; set; }
+    public DateTime? ApiTokenCreatedAt { get; set; }
     public InventoryAccessMode AccessMode { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }

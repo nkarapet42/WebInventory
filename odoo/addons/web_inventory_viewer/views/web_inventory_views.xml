@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <record id="web_inventory_view_list" model="ir.ui.view">
+        <field name="name">web.inventory.list</field>
+        <field name="model">web.inventory</field>
+        <field name="arch" type="xml">
+            <list create="false" edit="false" delete="false">
+                <field name="title"/>
+                <field name="item_count"/>
+                <field name="source_updated_at"/>
+                <field name="imported_at"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="web_inventory_view_form" model="ir.ui.view">
+        <field name="name">web.inventory.form</field>
+        <field name="model">web.inventory</field>
+        <field name="arch" type="xml">
+            <form create="false" edit="false" delete="false">
+                <sheet>
+                    <div class="oe_title">
+                        <h1><field name="title"/></h1>
+                    </div>
+                    <group>
+                        <field name="external_inventory_id"/>
+                        <field name="item_count"/>
+                        <field name="source_updated_at"/>
+                        <field name="imported_at"/>
+                    </group>
+                    <notebook>
+                        <page string="Fields">
+                            <field name="field_ids">
+                                <list create="false" edit="false" delete="false">
+                                    <field name="title"/>
+                                    <field name="field_type"/>
+                                    <field name="filled_count"/>
+                                    <field name="average"/>
+                                    <field name="minimum"/>
+                                    <field name="maximum"/>
+                                    <field name="true_count"/>
+                                    <field name="false_count"/>
+                                </list>
+                                <form create="false" edit="false" delete="false">
+                                    <group>
+                                        <field name="title"/>
+                                        <field name="field_type"/>
+                                        <field name="filled_count"/>
+                                        <field name="average"/>
+                                        <field name="minimum"/>
+                                        <field name="maximum"/>
+                                        <field name="true_count"/>
+                                        <field name="false_count"/>
+                                    </group>
+                                    <field name="top_value_ids">
+                                        <list create="false" edit="false" delete="false">
+                                            <field name="value"/>
+                                            <field name="count"/>
+                                        </list>
+                                    </field>
+                                </form>
+                            </field>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="web_inventory_action" model="ir.actions.act_window">
+        <field name="name">Imported Inventories</field>
+        <field name="res_model">web.inventory</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <menuitem id="web_inventory_root_menu" name="WebInventory" sequence="10"/>
+    <menuitem id="web_inventory_menu" name="Imported Inventories" parent="web_inventory_root_menu" action="web_inventory_action" sequence="10"/>
+</odoo>

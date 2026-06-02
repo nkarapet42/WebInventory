@@ -59,9 +59,49 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+  odoo:
+    image: odoo:18
+    ports:
+      - "8069:8069"
+    environment:
+      HOST: odoo-db
+      USER: ${ODOO_DB_USER}
+      PASSWORD: ${ODOO_DB_PASSWORD}
+    command:
+      - odoo
+      - --database=${ODOO_DB_NAME}
+      - --init=web_inventory_viewer
+      - --without-demo=all
+    volumes:
+      - odoo-data:/var/lib/odoo
+      - ./odoo/addons:/mnt/extra-addons:ro
+    healthcheck:
+      test: ["CMD-SHELL", "python3 -c \"from urllib.request import urlopen; urlopen('http://localhost:8069/web/login', timeout=5)\""]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    depends_on:
+      odoo-db:
+        condition: service_healthy
+  odoo-db:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: ${ODOO_DB_NAME}
+      POSTGRES_USER: ${ODOO_DB_USER}
+      POSTGRES_PASSWORD: ${ODOO_DB_PASSWORD}
+    volumes:
+      - odoo-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${ODOO_DB_USER} -d ${ODOO_DB_NAME}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
 volumes:
   pgdata:
   dataprotection-keys:
   certbot-www:
   letsencrypt:
+  odoo-data:
+  odoo-pgdata:

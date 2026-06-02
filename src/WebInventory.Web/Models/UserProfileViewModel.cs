@@ -6,6 +6,10 @@ public class UserProfileViewModel
     public required string DisplayName { get; set; }
     public string? Email { get; set; }
     public bool IsCurrentUser { get; set; }
+    public bool CanCreateSalesforceCustomer { get; set; }
+    public string? SalesforceAccountId { get; set; }
+    public string? SalesforceContactId { get; set; }
+    public DateTime? SalesforceSyncedAt { get; set; }
     public IReadOnlyList<UserInventoryRowViewModel> OwnedInventories { get; set; } = [];
     public IReadOnlyList<UserInventoryRowViewModel> WritableInventories { get; set; } = [];
 }

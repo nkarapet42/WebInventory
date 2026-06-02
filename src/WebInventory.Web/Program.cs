@@ -56,6 +56,22 @@ builder.Services.AddScoped<ISearchService, SearchService>();
 builder.Services.AddScoped<ICustomIdGenerator, CustomIdGenerator>();
 builder.Services.Configure<CloudinaryOptions>(builder.Configuration.GetSection("Cloudinary"));
 builder.Services.AddScoped<IImageUploadService, CloudinaryImageUploadService>();
+builder.Services.Configure<SalesforceOptions>(options =>
+{
+    options.LoginUrl = FirstConfiguredValue(
+        builder.Configuration["SALESFORCE_LOGIN_URL"],
+        builder.Configuration["Salesforce:LoginUrl"]) ?? options.LoginUrl;
+    options.ClientId = FirstConfiguredValue(
+        builder.Configuration["SALESFORCE_CLIENT_ID"],
+        builder.Configuration["Salesforce:ClientId"]);
+    options.ClientSecret = FirstConfiguredValue(
+        builder.Configuration["SALESFORCE_CLIENT_SECRET"],
+        builder.Configuration["Salesforce:ClientSecret"]);
+    options.ApiVersion = FirstConfiguredValue(
+        builder.Configuration["SALESFORCE_API_VERSION"],
+        builder.Configuration["Salesforce:ApiVersion"]) ?? options.ApiVersion;
+});
+builder.Services.AddHttpClient<ISalesforceClient, SalesforceClient>();
 builder.Services.AddSingleton<IIdPartGenerator, FixedTextGenerator>();
 builder.Services.AddSingleton<IIdPartGenerator, Random20BitGenerator>();
 builder.Services.AddSingleton<IIdPartGenerator, Random32BitGenerator>();

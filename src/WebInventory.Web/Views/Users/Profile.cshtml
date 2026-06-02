@@ -28,6 +28,11 @@
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ag-grid-community/styles/ag-grid.css" />
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ag-grid-community/styles/ag-theme-alpine.css" />
 
+@if (TempData["SalesforceSuccess"] is string salesforceSuccess)
+{
+    <div class="alert alert-success" role="alert">@salesforceSuccess</div>
+}
+
 <div class="d-flex justify-content-between align-items-center mb-3">
     <div>
         <h1>@Model.DisplayName</h1>
@@ -36,11 +41,36 @@
             <div class="text-muted">@Model.Email</div>
         }
     </div>
-    @if (Model.IsCurrentUser)
+    @if (Model.IsCurrentUser || Model.CanCreateSalesforceCustomer)
     {
-        <a class="btn btn-primary" asp-controller="Inventories" asp-action="Create">New Inventory</a>
+        <div class="d-flex gap-2">
+            @if (Model.IsCurrentUser)
+            {
+                <a class="btn btn-primary" asp-controller="Inventories" asp-action="Create">New Inventory</a>
+            }
+            @if (Model.CanCreateSalesforceCustomer)
+            {
+                <a class="btn btn-outline-primary"
+                   asp-controller="Salesforce"
+                   asp-action="CreateCustomer"
+                   asp-route-id="@Model.UserId">Create Salesforce Customer</a>
+            }
+        </div>
     }
 </div>
+
+@if (!string.IsNullOrWhiteSpace(Model.SalesforceAccountId))
+{
+    <section class="alert alert-info">
+        <h2 class="h5">Salesforce CRM Link</h2>
+        <div><strong>Account ID:</strong> @Model.SalesforceAccountId</div>
+        <div><strong>Contact ID:</strong> @Model.SalesforceContactId</div>
+        @if (Model.SalesforceSyncedAt is not null)
+        {
+            <div><strong>Linked at:</strong> @Model.SalesforceSyncedAt.Value.ToString("u")</div>
+        }
+    </section>
+}
 
 <section class="mb-5">
     <div class="d-flex justify-content-between align-items-center mb-3">

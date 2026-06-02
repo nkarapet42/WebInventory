@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using WebInventory.Domain.Constants;
 using WebInventory.Domain.Enums;
 using WebInventory.Domain.Identity;
 using WebInventory.Infrastructure.Data;
@@ -44,7 +45,10 @@ public class UsersController : Controller
             {
                 u.Id,
                 u.UserName,
-                u.Email
+                u.Email,
+                u.SalesforceAccountId,
+                u.SalesforceContactId,
+                u.SalesforceSyncedAt
             })
             .FirstOrDefaultAsync();
 
@@ -60,6 +64,13 @@ public class UsersController : Controller
             DisplayName = user.UserName ?? user.Email ?? "User",
             Email = user.Email,
             IsCurrentUser = string.Equals(currentUserId, user.Id, StringComparison.Ordinal),
+            CanCreateSalesforceCustomer = string.IsNullOrWhiteSpace(user.SalesforceAccountId)
+                && string.IsNullOrWhiteSpace(user.SalesforceContactId)
+                && (string.Equals(currentUserId, user.Id, StringComparison.Ordinal)
+                    || User.IsInRole(RoleNames.Admin)),
+            SalesforceAccountId = user.SalesforceAccountId,
+            SalesforceContactId = user.SalesforceContactId,
+            SalesforceSyncedAt = user.SalesforceSyncedAt,
             OwnedInventories = await GetOwnedInventoriesAsync(user.Id),
             WritableInventories = await GetWritableInventoriesAsync(user.Id)
         };

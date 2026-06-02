@@ -85,6 +85,13 @@
             <h2 class="h4 mb-0">Configured Fields</h2>
             <span class="text-muted small">Drag rows to reorder</span>
         </div>
+        <div class="btn-toolbar gap-2 mb-2" role="toolbar" aria-label="Field actions">
+            <button class="btn btn-outline-secondary" id="edit-selected-field" type="button" disabled>Edit Selected</button>
+            <form asp-action="DeleteField" asp-route-id="@Model.InventoryId" method="post" id="delete-selected-field-form" class="d-inline">
+                <input type="hidden" name="fieldId" id="delete-selected-field-id" />
+                <button class="btn btn-outline-danger" id="delete-selected-field" type="submit" disabled>Delete Selected</button>
+            </form>
+        </div>
         <div class="table-responsive">
             <table class="table table-hover align-middle">
                 <thead>
@@ -94,13 +101,12 @@
                     <th>Type</th>
                     <th>Slot</th>
                     <th>Table</th>
-                    <th class="text-end">Actions</th>
                 </tr>
                 </thead>
                 <tbody id="fields-sortable">
                 @foreach (var field in Model.Fields)
                 {
-                    <tr data-field-id="@field.Id">
+                    <tr data-field-id="@field.Id" tabindex="0">
                         <td class="text-muted field-drag-handle">::</td>
                         <td>
                             @field.Title
@@ -112,21 +118,12 @@
                         <td>@field.FieldType</td>
                         <td>@field.SlotNumber</td>
                         <td>@(field.ShowInTable ? "Yes" : "No")</td>
-                        <td>
-                            <div class="d-flex justify-content-end gap-2">
-                                <button class="btn btn-sm btn-outline-secondary edit-field" type="button" data-field-id="@field.Id">Edit</button>
-                                <form asp-action="DeleteField" asp-route-id="@Model.InventoryId" method="post">
-                                    <input type="hidden" name="fieldId" value="@field.Id" />
-                                    <button class="btn btn-sm btn-outline-danger" type="submit">Delete</button>
-                                </form>
-                            </div>
-                        </td>
                     </tr>
                 }
                 @if (!Model.Fields.Any())
                 {
                     <tr>
-                        <td colspan="6" class="text-muted">No custom fields configured.</td>
+                        <td colspan="5" class="text-muted">No custom fields configured.</td>
                     </tr>
                 }
                 </tbody>
@@ -141,10 +138,44 @@
     <script>
         const fields = @Html.Raw(fieldsJson);
         const inventoryId = '@Model.InventoryId';
+        const editSelectedButton = document.getElementById('edit-selected-field');
+        const deleteSelectedButton = document.getElementById('delete-selected-field');
+        const deleteSelectedFieldId = document.getElementById('delete-selected-field-id');
+        const sortableBody = document.getElementById('fields-sortable');
+        let selectedFieldId = null;
 
-        document.querySelectorAll('.edit-field').forEach(button => {
-            button.addEventListener('click', () => {
-                const field = fields.find(item => item.id === button.dataset.fieldId);
+        sortableBody?.querySelectorAll('tr[data-field-id]').forEach(row => {
+            row.addEventListener('click', () => selectField(row.dataset.fieldId));
+            row.addEventListener('keydown', event => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    selectField(row.dataset.fieldId);
+                }
+            });
+            row.addEventListener('dblclick', () => editSelectedField());
+        });
+
+        editSelectedButton?.addEventListener('click', () => editSelectedField());
+
+        document.getElementById('delete-selected-field-form')?.addEventListener('submit', event => {
+            if (!selectedFieldId || !confirm('Delete the selected field? Existing item values in this slot will stay in the database but the field will no longer be shown.')) {
+                event.preventDefault();
+            }
+        });
+
+        function selectField(fieldId) {
+            selectedFieldId = fieldId;
+            deleteSelectedFieldId.value = fieldId || '';
+            editSelectedButton.disabled = !fieldId;
+            deleteSelectedButton.disabled = !fieldId;
+
+            sortableBody.querySelectorAll('tr[data-field-id]').forEach(row => {
+                row.classList.toggle('table-active', row.dataset.fieldId === fieldId);
+            });
+        }
+
+        function editSelectedField() {
+            const field = fields.find(item => item.id === selectedFieldId);
                 if (!field) {
                     return;
                 }
@@ -155,10 +186,9 @@
                 document.getElementById('Form_FieldType').value = field.fieldTypeValue.toString();
                 document.getElementById('Form_SlotNumber').value = field.slotNumber.toString();
                 document.getElementById('Form_ShowInTable').checked = field.showInTable;
-            });
-        });
+                document.getElementById('Form_Title').focus();
+        }
 
-        const sortableBody = document.getElementById('fields-sortable');
         if (sortableBody && fields.length > 1) {
             new Sortable(sortableBody, {
                 animation: 150,

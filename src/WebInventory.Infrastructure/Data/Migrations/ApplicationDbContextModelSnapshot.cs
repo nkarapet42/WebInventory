@@ -460,14 +460,14 @@ namespace WebInventory.Infrastructure.Data.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("CreatedByUserId");
+
                     b.HasIndex("SearchVector");
 
                     NpgsqlIndexBuilderExtensions.HasMethod(b.HasIndex("SearchVector"), "GIN");
 
                     b.HasIndex("InventoryId", "CustomId")
                         .IsUnique();
-
-                    b.HasIndex("CreatedByUserId");
 
                     b.ToTable("Items");
                 });
@@ -655,6 +655,17 @@ namespace WebInventory.Infrastructure.Data.Migrations
                     b.Property<bool>("PhoneNumberConfirmed")
                         .HasColumnType("boolean");
 
+                    b.Property<string>("SalesforceAccountId")
+                        .HasMaxLength(18)
+                        .HasColumnType("character varying(18)");
+
+                    b.Property<string>("SalesforceContactId")
+                        .HasMaxLength(18)
+                        .HasColumnType("character varying(18)");
+
+                    b.Property<DateTime?>("SalesforceSyncedAt")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<string>("SecurityStamp")
                         .HasColumnType("text");
 
@@ -669,6 +680,12 @@ namespace WebInventory.Infrastructure.Data.Migrations
 
                     b.HasIndex("NormalizedEmail")
                         .HasDatabaseName("EmailIndex");
+
+                    b.HasIndex("SalesforceAccountId")
+                        .IsUnique();
+
+                    b.HasIndex("SalesforceContactId")
+                        .IsUnique();
 
                     b.HasIndex("NormalizedUserName")
                         .IsUnique()

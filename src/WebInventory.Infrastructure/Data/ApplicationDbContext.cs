@@ -30,6 +30,14 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
     {
         base.OnModelCreating(builder);
 
+        builder.Entity<ApplicationUser>(entity =>
+        {
+            entity.Property(e => e.SalesforceAccountId).HasMaxLength(18);
+            entity.Property(e => e.SalesforceContactId).HasMaxLength(18);
+            entity.HasIndex(e => e.SalesforceAccountId).IsUnique();
+            entity.HasIndex(e => e.SalesforceContactId).IsUnique();
+        });
+
         builder.Entity<Category>(entity =>
         {
             entity.HasKey(e => e.Id);

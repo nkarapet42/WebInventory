@@ -73,6 +73,16 @@ builder.Services.Configure<SalesforceOptions>(options =>
         builder.Configuration["Salesforce:ApiVersion"]) ?? options.ApiVersion;
 });
 builder.Services.AddHttpClient<ISalesforceClient, SalesforceClient>();
+builder.Services.Configure<DropboxOptions>(options =>
+{
+    options.AccessToken = FirstConfiguredValue(
+        builder.Configuration["DROPBOX_ACCESS_TOKEN"],
+        builder.Configuration["Dropbox:AccessToken"]) ?? string.Empty;
+    options.SupportTicketFolder = FirstConfiguredValue(
+        builder.Configuration["DROPBOX_SUPPORT_TICKET_FOLDER"],
+        builder.Configuration["Dropbox:SupportTicketFolder"]) ?? options.SupportTicketFolder;
+});
+builder.Services.AddHttpClient<ISupportTicketUploader, DropboxSupportTicketUploader>();
 builder.Services.AddSingleton<IIdPartGenerator, FixedTextGenerator>();
 builder.Services.AddSingleton<IIdPartGenerator, Random20BitGenerator>();
 builder.Services.AddSingleton<IIdPartGenerator, Random32BitGenerator>();

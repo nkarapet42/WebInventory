@@ -87,6 +87,10 @@
     </header>
     <div class="container">
         <main role="main" class="pb-3">
+            @if (TempData["SupportTicketSuccess"] is string supportTicketSuccess)
+            {
+                <div class="alert alert-success" role="alert">@supportTicketSuccess</div>
+            }
             @RenderBody()
         </main>
     </div>
@@ -94,6 +98,14 @@
     <footer class="border-top footer text-muted">
         <div class="container">
             &copy; 2026 - WebInventory.Web - <a asp-area="" asp-controller="Home" asp-action="Privacy">@T["Privacy"]</a>
+            @if (User.Identity?.IsAuthenticated == true)
+            {
+                <span> - </span>
+                <a asp-area=""
+                   asp-controller="SupportTickets"
+                   asp-action="Create"
+                   asp-route-sourceUrl="@returnUrl">Create support ticket</a>
+            }
         </div>
     </footer>
     <script src="~/lib/jquery/dist/jquery.min.js"></script>

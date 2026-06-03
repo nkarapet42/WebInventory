@@ -1,0 +1,42 @@
+@model SupportTicketViewModel
+@{
+    ViewData["Title"] = "Create support ticket";
+}
+
+<h1>Create support ticket</h1>
+<p class="text-muted">Describe the issue. A JSON file will be uploaded for the administrator notification flow.</p>
+
+<form asp-action="Create" method="post">
+    <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+    <input type="hidden" asp-for="SourceUrl" />
+
+    <div class="mb-3">
+        <label asp-for="Summary" class="form-label"></label>
+        <textarea asp-for="Summary" class="form-control" rows="4"></textarea>
+        <span asp-validation-for="Summary" class="text-danger"></span>
+    </div>
+
+    <div class="mb-3">
+        <label asp-for="Priority" class="form-label"></label>
+        <select asp-for="Priority" class="form-select">
+            <option value="@SupportTicketPriorities.High">High</option>
+            <option value="@SupportTicketPriorities.Average">Average</option>
+            <option value="@SupportTicketPriorities.Low">Low</option>
+        </select>
+        <span asp-validation-for="Priority" class="text-danger"></span>
+    </div>
+
+    <dl class="row">
+        <dt class="col-sm-3">Inventory</dt>
+        <dd class="col-sm-9">@(Model.InventoryTitle ?? "Not applicable")</dd>
+        <dt class="col-sm-3">Page</dt>
+        <dd class="col-sm-9"><code>@Model.SourceUrl</code></dd>
+    </dl>
+
+    <button type="submit" class="btn btn-primary">Upload support ticket</button>
+    <a href="@Model.SourceUrl" class="btn btn-link">Cancel</a>
+</form>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}
